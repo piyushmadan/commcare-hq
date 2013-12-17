@@ -56,6 +56,7 @@ def make_supply_point_product(supply_point_case, product_uuid, owner_id=None):
     sppc.save()
     return sppc
 
+
 def make_psi_config(domain):
     c = CommtrackConfig(
         domain=domain,

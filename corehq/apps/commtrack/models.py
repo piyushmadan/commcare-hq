@@ -959,7 +959,6 @@ class SupplyPointProductCase(CommCareCase):
         return super(SupplyPointProductCase, self).get_index_map(reversed)
 
 
-
 class RequisitionCase(CommCareCase):
     """
     A wrapper around CommCareCases to get more built in functionality
