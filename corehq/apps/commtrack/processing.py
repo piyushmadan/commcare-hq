@@ -1,6 +1,6 @@
 import logging
 from dimagi.utils.logging import log_exception
-from corehq.apps.commtrack.models import CommtrackConfig, StockTransaction, SupplyPointCase
+from corehq.apps.commtrack.models import CommtrackConfig, StockTransaction, SupplyPointCase, SupplyPointProductCase
 from corehq.apps.commtrack import const
 import collections
 from dimagi.utils.couch.loosechange import map_reduce
@@ -90,9 +90,10 @@ def product_subcases(supply_point):
     from helpers import make_supply_point_product
 
     product_subcase_uuids = [ix.referenced_id for ix in supply_point.reverse_indices if ix.identifier == const.PARENT_CASE_REF]
-    product_subcases = CommCareCase.view('_all_docs', keys=product_subcase_uuids, include_docs=True)
-    product_subcase_mapping = dict((subcase.dynamic_properties().get('product'), subcase) for subcase in product_subcases)
+    product_subcases = SupplyPointProductCase.view('_all_docs', keys=product_subcase_uuids, include_docs=True)
+    product_subcase_mapping = dict((subcase.product, subcase) for subcase in product_subcases)
 
+    # todo: don't dynamically run this once per product when there is no subcase found
     def create_product_subcase(product_uuid):
         return make_supply_point_product(supply_point, product_uuid)
 
