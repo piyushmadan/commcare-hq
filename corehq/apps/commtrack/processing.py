@@ -1,5 +1,4 @@
 import logging
-from dimagi.utils.logging import log_exception
 from corehq.apps.commtrack.models import CommtrackConfig, StockTransaction, SupplyPointCase, SupplyPointProductCase
 from corehq.apps.commtrack import const
 import collections
@@ -9,10 +8,9 @@ from casexml.apps.case.models import CommCareCaseAction
 from casexml.apps.case.xml.parser import AbstractAction
 
 from casexml.apps.case.mock import CaseBlock
-from casexml.apps.case.models import CommCareCase
 from casexml.apps.case.xml import V2
 from xml import etree as legacy_etree
-from datetime import datetime, date
+from datetime import date
 from lxml import etree
 from corehq.apps.receiverwrapper.util import get_submit_url
 from receiver.util import spoof_submission
@@ -82,8 +80,9 @@ def process_stock(sender, xform, config=None, **kwargs):
 
 
 # TODO retire this with move to new data model
-def product_subcases(supply_point):
-    """given a supply point, return all the sub-cases for each product stocked at that supply point
+def product_subcases(supply_point, create_new=True):
+    """
+    given a supply point, return all the sub-cases for each product stocked at that supply point
     actually returns a mapping: product doc id => sub-case
     ACTUALLY returns a dict that will create non-existent product sub-cases on demand
     """
@@ -92,6 +91,9 @@ def product_subcases(supply_point):
     product_subcase_uuids = [ix.referenced_id for ix in supply_point.reverse_indices if ix.identifier == const.PARENT_CASE_REF]
     product_subcases = SupplyPointProductCase.view('_all_docs', keys=product_subcase_uuids, include_docs=True)
     product_subcase_mapping = dict((subcase.product, subcase) for subcase in product_subcases)
+
+    if not create_new:
+        return product_subcase_mapping
 
     # todo: don't dynamically run this once per product when there is no subcase found
     def create_product_subcase(product_uuid):
