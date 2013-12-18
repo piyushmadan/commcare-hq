@@ -11,11 +11,16 @@ from xml.dom.minidom import parseString
 from diff_match_patch import diff_match_patch
 from django.core.cache import cache
 from django.template.loader import render_to_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import ugettext as _, get_language
 from django.views.decorators.cache import cache_control
 from corehq import ApplicationsTab, toggles
 from corehq.apps.app_manager import commcare_settings
-from corehq.apps.app_manager.exceptions import RearrangeError
+from corehq.apps.app_manager.exceptions import (
+    AppManagerException,
+    BlankXFormError,
+    ConflictingCaseTypeError,
+    RearrangeError,
+)
 from corehq.apps.app_manager.templatetags.xforms_extras import trans
 from corehq.apps.sms.views import get_sms_autocomplete_context
 from django.utils.http import urlencode as django_urlencode
@@ -61,7 +66,7 @@ from dimagi.utils.web import json_response, json_request
 from corehq.apps.reports import util as report_utils
 from corehq.apps.domain.decorators import login_and_domain_required, login_or_digest
 from corehq.apps.app_manager.models import Application, get_app, DetailColumn, Form, FormActions,\
-    AppError, load_case_reserved_words, ApplicationBase, DeleteFormRecord, DeleteModuleRecord, \
+    AppEditingError, load_case_reserved_words, ApplicationBase, DeleteFormRecord, DeleteModuleRecord, \
     DeleteApplicationRecord, str_to_cls, validate_lang, SavedAppBuild, ParentSelect, Module, CareplanModule, CareplanForm, CareplanGoalForm, CareplanTaskForm
 from corehq.apps.app_manager.models import DETAIL_TYPES, import_app as import_app_util, SortElement
 from dimagi.utils.web import get_url_base
@@ -324,7 +329,7 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
             xform_questions = xform.get_questions(langs, include_triggers=True)
         except etree.XMLSyntaxError as e:
             form_errors.append("Syntax Error: %s" % e)
-        except AppError as e:
+        except AppEditingError as e:
             form_errors.append("Error in application: %s" % e)
         except XFormValidationError:
             xform_validation_errored = True
@@ -386,8 +391,10 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
 
     if isinstance(form, CareplanForm):
         context.update({
+            'mode': form.mode,
             'fixed_questions': form.get_fixed_questions(),
-            'custom_case_properties': form.custom_case_updates,
+            'custom_case_properties': [{'key': key, 'path': path} for key, path in form.custom_case_updates.items()],
+            'case_preload': [{'key': key, 'path': path} for key, path in form.case_preload.items()],
         })
         return "app_manager/form_view_careplan.html", context
     else:
@@ -472,7 +479,8 @@ def _clear_app_cache(request, domain):
             None, # tab.org should be None for any non org page
             ApplicationsTab.view,
             is_active,
-            request.couch_user.get_id
+            request.couch_user.get_id,
+            get_language(),
         ])
         cache.delete(key)
 
@@ -525,6 +533,8 @@ def paginate_releases(request, domain, app_id):
         limit=limit,
         wrapper=lambda x: SavedAppBuild.wrap(x['value']).to_saved_build_json(timezone),
     ).all()
+    for app in saved_apps:
+        app['include_media'] = toggle_enabled(toggles.APP_BUILDER_INCLUDE_MULTIMEDIA_ODK, request.user.username)
     return json_response(saved_apps)
 
 
@@ -535,11 +545,9 @@ def release_manager(request, domain, app_id, template='app_manager/releases.html
     context = get_apps_base_context(request, domain, app)
     context['sms_contacts'] = get_sms_autocomplete_context(request, domain)['sms_contacts']
 
-    saved_apps = []
-
     context.update({
         'release_manager': True,
-        'saved_apps': saved_apps,
+        'saved_apps': [],
         'latest_release': latest_release,
     })
     if not app.is_remote_app():
@@ -884,6 +892,10 @@ def _new_careplan_module(req, domain, app, name, lang):
     from corehq.apps.app_manager.util import new_careplan_module
     target_module_index = req.POST.get('target_module_id')
     target_module = app.get_module(target_module_index)
+    if not target_module.case_type:
+        name = target_module.name[lang]
+        messages.error(req, _("Please set the case type for the target module '{name}'.".format(name=name)))
+        return back_to_main(req, domain, app_id=app.id)
     module = new_careplan_module(app, name, lang, target_module)
     app.save()
     response = back_to_main(req, domain, app_id=app.id, module_id=module.id)
@@ -977,9 +989,18 @@ def delete_form(req, domain, app_id, module_id, form_id):
 def copy_form(req, domain, app_id, module_id, form_id):
     app = get_app(domain, app_id)
     to_module_id = int(req.POST['to_module_id'])
-    if app.copy_form(int(module_id), int(form_id), to_module_id) == 'case type conflict':
+    try:
+        app.copy_form(int(module_id), int(form_id), to_module_id)
+    except ConflictingCaseTypeError:
         messages.warning(req, CASE_TYPE_CONFLICT_MSG,  extra_tags="html")
-    app.save()
+        app.save()
+    except BlankXFormError:
+        # don't save!
+        messages.error(req, _('We could not copy this form, because it is blank.'
+                              'In order to copy this form, please add some questions first.'))
+    else:
+        app.save()
+
     return back_to_main(req, domain, app_id=app_id, module_id=module_id,
                         form_id=form_id)
 
@@ -1033,6 +1054,9 @@ def edit_module_attr(req, domain, app_id, module_id, attr):
         if is_valid_case_type(case_type):
             # todo: something better than nothing when invalid
             module["case_type"] = case_type
+            for cp_mod in (mod for mod in app.modules if isinstance(mod, CareplanModule)):
+                if cp_mod.unique_id != module.unique_id and cp_mod.parent_select.module_id == module.unique_id:
+                    cp_mod.case_type = case_type
         else:
             return HttpResponseBadRequest("case type is improperly formatted")
     if should_edit("put_in_root"):
@@ -1290,9 +1314,17 @@ def edit_form_actions(req, domain, app_id, module_id, form_id):
 def edit_careplan_form_actions(req, domain, app_id, module_id, form_id):
     app = get_app(domain, app_id)
     form = app.get_module(module_id).get_form(form_id)
-    fixed_questions = json.loads(req.POST.get('fixed_questions'))
-    for question in fixed_questions:
+    transaction = json.loads(req.POST.get('transaction'))
+
+    for question in transaction['fixedQuestions']:
         setattr(form, question['name'], question['path'])
+
+    def to_dict(properties):
+        return dict((p['key'], p['path']) for p in properties)
+
+    form.custom_case_updates = to_dict(transaction['case_properties'])
+    form.case_preload = to_dict(transaction['case_preload'])
+
     response_json = {}
     app.save(response_json)
     return json_response(response_json)
@@ -1570,7 +1602,9 @@ def rearrange(req, domain, app_id, key):
         if "forms" == key:
             to_module_id = int(req.POST['to_module_id'])
             from_module_id = int(req.POST['from_module_id'])
-            if app.rearrange_forms(to_module_id, from_module_id, i, j) == 'case type conflict':
+            try:
+                app.rearrange_forms(to_module_id, from_module_id, i, j)
+            except ConflictingCaseTypeError:
                 messages.warning(req, CASE_TYPE_CONFLICT_MSG,  extra_tags="html")
         elif "modules" == key:
             app.rearrange_modules(i, j)
@@ -1634,7 +1668,8 @@ def save_copy(req, domain, app_id):
         }),
     })
 
-def validate_form_for_build(request, domain, app_id, unique_form_id):
+
+def validate_form_for_build(request, domain, app_id, unique_form_id, ajax=True):
     app = get_app(domain, app_id)
     try:
         form = app.get_form(unique_form_id)
@@ -1643,12 +1678,11 @@ def validate_form_for_build(request, domain, app_id, unique_form_id):
         raise Http404()
     errors = form.validate_for_build()
     lang, langs = get_langs(request, app)
-    if "blank form" in [error.get('type') for error in errors]:
-        return json_response({
-            "error_html": render_to_string('app_manager/partials/create_form_prompt.html')
-        })
-    return json_response({
-        "error_html": render_to_string('app_manager/partials/build_errors.html', {
+
+    if ajax and "blank form" in [error.get('type') for error in errors]:
+        response_html = render_to_string('app_manager/partials/create_form_prompt.html')
+    else:
+        response_html = render_to_string('app_manager/partials/build_errors.html', {
             'app': app,
             'form': form,
             'build_errors': errors,
@@ -1656,9 +1690,16 @@ def validate_form_for_build(request, domain, app_id, unique_form_id):
             'domain': domain,
             'langs': langs,
             'lang': lang
-        }),
-    })
-    
+        })
+
+    if ajax:
+        return json_response({
+            'error_html': response_html,
+        })
+    else:
+        return HttpResponse(response_html)
+
+
 @no_conflict_require_POST
 @require_can_edit_apps
 def revert_to_copy(req, domain, app_id):
@@ -1859,6 +1900,7 @@ def download_app_strings(req, domain, app_id, lang):
         req.app.create_app_strings(lang)
     )
 
+
 @safe_download
 def download_xform(req, domain, app_id, module_id, form_id):
     """
@@ -1869,8 +1911,14 @@ def download_xform(req, domain, app_id, module_id, form_id):
         return HttpResponse(
             req.app.fetch_xform(module_id, form_id)
         )
-    except (IndexError, XFormValidationError):
+    except IndexError:
         raise Http404()
+    except AppManagerException:
+        unique_form_id = req.app.get_module(module_id).get_form(form_id).unique_id
+        response = validate_form_for_build(req, domain, app_id, unique_form_id, ajax=False)
+        response.status_code = 404
+        return response
+
 
 @safe_download
 def download_user_registration(req, domain, app_id):
