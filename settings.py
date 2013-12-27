@@ -6,7 +6,7 @@ import sys, os
 from django.contrib import messages
 
 # odd celery fix
-import djcelery;
+import djcelery
 
 djcelery.setup_loader()
 
@@ -170,6 +170,7 @@ HQ_APPS = (
     'hqscripts',
     'casexml.apps.case',
     'casexml.apps.phone',
+    'casexml.apps.stock',
     'corehq.apps.cleanup',
     'corehq.apps.cloudcare',
     'corehq.apps.appstore',
@@ -877,7 +878,7 @@ PILLOWTOPS = {
         'custom.trialconnect.smspillow.TCSMSPillow',
     ],
     'commtrack': [
-        'corehq.pillows.commtrack.ConsumptionRatePillow',
+        'corehq.pillows.commtrack.consumption_calc.ConsumptionRatePillow',
     ]
 }
 
