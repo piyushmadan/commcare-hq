@@ -847,7 +847,6 @@ var DetailScreenConfig = (function () {
         {value: "late-flag", label: DetailScreenConfig.message.LATE_FLAG_FORMAT},
         {value: "invisible", label: DetailScreenConfig.message.INVISIBLE_FORMAT},
         {value: "filter", label: DetailScreenConfig.message.FILTER_XPATH_FORMAT},
-        {value: "calculate", label: DetailScreenConfig.message.CALC_XPATH_FORMAT},
         {value: "address", label: DetailScreenConfig.message.ADDRESS_FORMAT}
     ];
 
