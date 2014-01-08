@@ -30,6 +30,7 @@ class ProductForm(forms.Form):
     def __init__(self, product, *args, **kwargs):
         self.product = product
         kwargs['initial'] = self.product._doc
+        kwargs['initial']['code'] = self.product.code
         super(ProductForm, self).__init__(*args, **kwargs)
         programs = Program.by_domain(self.product.domain, wrap=False)
         self.fields['program_id'].choices = tuple((prog['_id'], prog['name']) for prog in programs)
