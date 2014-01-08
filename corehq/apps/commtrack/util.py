@@ -2,7 +2,9 @@ from xml.etree import ElementTree
 from dimagi.utils.couch.database import get_db
 from casexml.apps.case.models import CommCareCase
 from corehq.apps.commtrack import const
-from corehq.apps.commtrack.models import CommtrackConfig, CommtrackActionConfig, LocationType, RequisitionActions, CommtrackRequisitionConfig, Product, SupplyPointCase, SupplyPointProductCase, RequisitionCase
+from corehq.apps.commtrack.models import (CommtrackConfig, CommtrackActionConfig, LocationType, RequisitionActions,
+                                          CommtrackRequisitionConfig, Product, SupplyPointCase, SupplyPointProductCase,
+                                          RequisitionCase, Program)
 from corehq.apps.locations.models import Location
 import itertools
 from datetime import datetime, date, timedelta
@@ -51,15 +53,32 @@ def get_supply_point(domain, site_code=None, loc=None):
         'location': loc,
     }
 
-def make_product(domain, name, code):
+def make_product(domain, name, code, program_id):
     p = Product()
     p.domain = domain
     p.name = name
-    p.code = code
+    p.code = code.lower()
+    p.program_id = program_id
     p.save()
     return p
 
-def bootstrap_commtrack_settings_if_necessary(domain, requisitions_enabled=False): #True):
+def make_program(domain, name, code):
+    p = Program()
+    p.domain = domain
+    p.name = name
+    p.code = code.lower()
+    p.save()
+    return p
+
+def get_or_make_def_program(domain):
+    program = [p for p in Program.by_domain(domain) if p.name == "Default"]
+    if len(program) == 0:
+        return make_program(domain, 'Default', 'def')
+    else:
+        return program[0]
+
+
+def bootstrap_commtrack_settings_if_necessary(domain, requisitions_enabled=False):
     if not(domain and domain.commtrack_enabled and not domain.commtrack_settings):
         return
 
@@ -109,36 +128,33 @@ def bootstrap_commtrack_settings_if_necessary(domain, requisitions_enabled=False
             enabled=True,
             actions=[
                 CommtrackActionConfig(
-                    action_type=RequisitionActions.REQUEST,
+                    action=RequisitionActions.REQUEST,
                     keyword='req',
                     caption='Request',
-                    name='request',
                 ),
                 CommtrackActionConfig(
-                    action_type=RequisitionActions.APPROVAL,
+                    action=RequisitionActions.APPROVAL,
                     keyword='approve',
                     caption='Approved',
-                    name='approved',
                 ),
                 CommtrackActionConfig(
-                    action_type=RequisitionActions.PACK,
+                    action=RequisitionActions.PACK,
                     keyword='pack',
                     caption='Packed',
-                    name='packed',
                 ),
                 CommtrackActionConfig(
-                    action_type=RequisitionActions.RECEIPTS,
+                    action=RequisitionActions.RECEIPTS,
                     keyword='rec',
                     caption='Requisition Receipts',
-                    name='req_received',
                 ),
             ],
         )
     c.save()
 
-    make_product(domain.name, 'Sample Product 1', 'pp')
-    make_product(domain.name, 'Sample Product 2', 'pq')
-    make_product(domain.name, 'Sample Product 3', 'pr')
+    program = make_program(domain.name, 'Default', 'def')
+    make_product(domain.name, 'Sample Product 1', 'pp', program.get_id)
+    make_product(domain.name, 'Sample Product 2', 'pq', program.get_id)
+    make_product(domain.name, 'Sample Product 3', 'pr', program.get_id)
 
     return c
 
@@ -246,7 +262,7 @@ def get_case_wrapper(data):
     return {
         const.SUPPLY_POINT_CASE_TYPE: SupplyPointCase,
         const.SUPPLY_POINT_PRODUCT_CASE_TYPE: SupplyPointProductCase,
-        const.REQUISITION_CASE_TYPE: RequisitionCase
+        const.REQUISITION_CASE_TYPE: RequisitionCase,
     }.get(data.get('type'), CommCareCase)
 
 

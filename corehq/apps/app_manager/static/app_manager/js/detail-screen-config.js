@@ -856,5 +856,11 @@ var DetailScreenConfig = (function () {
             {value: "enum-image", label: DetailScreenConfig.message.ENUM_IMAGE_FORMAT + ' (Preview!)'}
         );
     }
+
+    if (window.FEATURE_enable_calc_xpaths) {
+        DetailScreenConfig.MENU_OPTIONS.push(
+            {value: "calculate", label: DetailScreenConfig.message.CALC_XPATH_FORMAT + ' (Preview!)'}
+        );
+    }
     return DetailScreenConfig;
 }());
