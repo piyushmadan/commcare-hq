@@ -743,6 +743,10 @@ class CouchUser(Document, DjangoUserMixin, IsMemberOfMixin, UnicodeMixIn, EulaMi
     def human_friendly_name(self):
         return self.full_name if self.full_name else self.username
 
+    @property
+    def name_in_filters(self):
+        return "%s <%s>" % (self.full_name, self.username) if self.full_name else self.username
+
     formatted_name = full_name
     name = full_name
 
@@ -1572,7 +1576,7 @@ class OrgMembershipMixin(DocumentSchema):
 
     def get_organizations(self):
         from corehq.apps.orgs.models import Organization
-        return [Organization.get_by_name(org) for org in self.organizations]
+        return filter(None, [Organization.get_by_name(org) for org in self.organizations])
 
     def is_member_of_org(self, org_name_or_model):
         """
