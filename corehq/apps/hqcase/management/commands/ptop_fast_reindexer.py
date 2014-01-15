@@ -143,6 +143,7 @@ class PtopReindexer(NoArgsCommand):
             # fout.write('\n'.join(simplejson.dumps(row) for row in self.full_couch_view_iter()))
             for row in self.full_couch_view_iter():
                 fout.write("%s\n" % simplejson.dumps(row))
+        print "finished view info writing to disk"
 
     def load_seq_from_disk(self):
         """
