@@ -215,8 +215,10 @@ class PtopReindexer(NoArgsCommand):
                 sys.exit()
 
             self.set_seq_prefix(runparts[-1])
+        print "loading seq from disk"
         seq = self.load_seq_from_disk()
 
+        print "set index reindex settings"
         #configure index to indexing mode
         self.pillow.set_index_reindex_settings()
 
