@@ -1083,7 +1083,7 @@ def migrate_couchpulse():
     alembic upgrade head
 
     """
-    with cd(os.path.join(env.code_root, 'submodules', 'couchpulse'):
+    with cd(os.path.join(env.code_root, 'submodules', 'couchpulse')):
         sudo('export PYTHONPATH=`pwd`', user=env.sudo_user)
         sudo('%s/bin/alembic upgrade head' % env.virualenv_root,
              user=env.sudo_user)
