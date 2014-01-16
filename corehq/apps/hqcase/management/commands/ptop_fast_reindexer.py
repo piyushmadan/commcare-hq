@@ -143,6 +143,7 @@ class PtopReindexer(NoArgsCommand):
             # fout.write('\n'.join(simplejson.dumps(row) for row in self.full_couch_view_iter()))
             for row in self.full_couch_view_iter():
                 fout.write("%s\n" % simplejson.dumps(row))
+        print "finished view info writing to disk"
 
     def load_seq_from_disk(self):
         """
@@ -215,8 +216,10 @@ class PtopReindexer(NoArgsCommand):
                 sys.exit()
 
             self.set_seq_prefix(runparts[-1])
+        print "loading seq from disk"
         seq = self.load_seq_from_disk()
 
+        print "set index reindex settings"
         #configure index to indexing mode
         self.pillow.set_index_reindex_settings()
 
