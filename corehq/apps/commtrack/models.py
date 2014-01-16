@@ -478,26 +478,23 @@ class NewStockReport(object):
     Intermediate class for dealing with stock XML
     """
     # todo: fix name, remove old stock report class
-    def __init__(self, form, timestamp, tag, node, transactions):
+    def __init__(self, form, timestamp, tag, transactions):
         self._form = form
         self.form_id = form._id
         self.timestamp = timestamp
         self.tag = tag
-        self.node = node
         self.transactions = transactions
 
     @classmethod
     def from_xml(cls, form, config, elem):
-        tag, node = elem
-        timestamp = node.get('@date', form.received_on)
-        products = node['product']
-        if not isinstance(products, collections.Sequence):
-            products = [products]
+        tag = elem.tag
+        tag = tag[tag.find('}')+1:] # strip out ns
+        timestamp = elem.attrib.get('date', form.received_on)
+        products = elem.findall('./{%s}entry' % const.COMMTRACK_REPORT_XMLNS)
         transactions = [t for prod_entry in products for t in
-                        StockTransaction.from_xml(config, timestamp, tag, node, prod_entry)]
+                        StockTransaction.from_xml(config, timestamp, tag, elem, prod_entry)]
 
-
-        return cls(form, timestamp, tag, node, transactions)
+        return cls(form, timestamp, tag, transactions)
 
     @transaction.commit_on_success
     def create_models(self):
@@ -506,6 +503,7 @@ class NewStockReport(object):
             db_txn = DbStockTransaction(
                 report=report,
                 case_id=txn.case_id,
+                section_id=txn.section_id,
                 product_id=txn.product_id,
             )
             previous_transaction = db_txn.get_previous_transaction()
@@ -527,8 +525,9 @@ class StockTransaction(Document):
     # todo: why is this a Document?
     domain = StringProperty()
     timestamp = DateTimeProperty()
-    location_id = StringProperty() # location record id
-    case_id = StringProperty() # supply point case id
+    location_id = StringProperty()  # location record id
+    case_id = StringProperty()
+    section_id = StringProperty()
     product_id = StringProperty()
     action = StringProperty()
     subaction = StringProperty()
@@ -609,35 +608,39 @@ class StockTransaction(Document):
         return None
 
     @classmethod
-    # note: works on 'jsonified' xml as produced by couchforms
     def from_xml(cls, config, timestamp, action_tag, action_node, product_node):
-        action_type = action_node.get('@type')
+        action_type = action_node.attrib.get('type')
         subaction = action_type
-        quantity = float(product_node.get('@quantity'))
-        def _txn(action, case_id):
+        quantity = float(product_node.attrib.get('quantity'))
+        def _txn(action, case_id, section_id):
             data = {
                 'timestamp': timestamp,
-                'product_id': product_node.get('@id'),
+                'product_id': product_node.attrib.get('id'),
                 'quantity': quantity,
                 'action': action,
                 'case_id': case_id,
+                'section_id': section_id,
                 'subaction': subaction if subaction and subaction != action else None
                 # note: no location id
             }
             return cls(config=config, **data)
 
+        DEFAULT_SECTION_ID = 'stock'
         if action_tag == 'balance':
             yield _txn(
                 action=const.StockActions.STOCKONHAND if quantity > 0 else const.StockActions.STOCKOUT,
-                case_id=action_node['@entity-id'],
+                case_id=action_node.attrib['entity-id'],
+                section_id=action_node.attrib.get('section-id', DEFAULT_SECTION_ID),
             )
         elif action_tag == 'transfer':
-            src, dst = [action_node.get('@%s' % k) for k in ('src', 'dest')]
+            src, dst = [action_node.attrib.get(k) for k in ('src', 'dest')]
             assert src or dst
             if src is not None:
-                yield _txn(action=const.StockActions.CONSUMPTION, case_id=src)
+                yield _txn(action=const.StockActions.CONSUMPTION, case_id=src,
+                           section_id=action_node.attrib.get('section-id', DEFAULT_SECTION_ID))
             if dst is not None:
-                yield _txn(action=const.StockActions.RECEIPTS, case_id=dst)
+                yield _txn(action=const.StockActions.RECEIPTS, case_id=dst,
+                           section_id=action_node.attrib.get('section-id', DEFAULT_SECTION_ID))
 
     def to_xml(self, E=None, **kwargs):
         if not E:

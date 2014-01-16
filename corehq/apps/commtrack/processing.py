@@ -43,7 +43,7 @@ def process_stock(sender, xform, config=None, **kwargs):
 
     # transactions grouped by case/product id
     grouped_tx = map_reduce(lambda tx: [((tx.case_id, tx.product_id),)],
-                            lambda v: sorted(v, key=lambda tx: (tx.timestamp, tx.processing_order)),
+                            lambda v: sorted(v, key=lambda tx: tx.timestamp),
                             data=transactions,
                             include_docs=True)
 
@@ -62,6 +62,9 @@ def process_stock(sender, xform, config=None, **kwargs):
         case.actions.append(case_action)
         case.save()
 
+    def _is_stockonhand_txn(txn):
+        return txn.section_id == 'stock'
+
     # supply point cases have to be handled differently because of the use of product subcases
     supply_point_cases = filter(lambda case: isinstance(case, SupplyPointCase), relevant_cases)
     if supply_point_cases:
@@ -70,7 +73,10 @@ def process_stock(sender, xform, config=None, **kwargs):
             post_processed_transactions = []
             E = XML(ns=COMMTRACK_LEGACY_REPORT_XMLNS)
             root = E.commtrack_data()
+
             for (case_id, product_id), txs in grouped_tx.iteritems():
+                # filter out non-stockonhand transactions first
+                txs = filter(_is_stockonhand_txn, txs)
                 if case_id in supply_point_product_subcases:
                     subcase = supply_point_product_subcases[case_id][product_id]
                     case_block, reconciliations = process_product_transactions(user_id, submit_time, subcase, txs)
@@ -78,15 +84,17 @@ def process_stock(sender, xform, config=None, **kwargs):
                     post_processed_transactions.extend(reconciliations)
 
             supply_point_ids = supply_point_product_subcases.keys()
-            supply_point_transactions = filter(lambda tx: tx.case_id in supply_point_ids, transactions)
+            supply_point_transactions = filter(lambda tx: _is_stockonhand_txn(tx) and tx.case_id in supply_point_ids, transactions)
             post_processed_transactions.extend(map(lambda tx: LegacyStockTransaction.convert(tx, supply_point_product_subcases), supply_point_transactions))
-            set_transactions(root, post_processed_transactions, E)
 
-            submission = etree.tostring(root, encoding='utf-8', pretty_print=True)
-            logger.debug(submission)
-            spoof_submission(get_submit_url(domain), submission,
-                             headers={'HTTP_X_SUBMIT_TIME': submit_time},
-                             hqsubmission=False)
+            # only bother with submission if there were any actual transactions
+            if post_processed_transactions:
+                set_transactions(root, post_processed_transactions, E)
+                submission = etree.tostring(root, encoding='utf-8', pretty_print=True)
+                logger.debug(submission)
+                spoof_submission(get_submit_url(domain), submission,
+                                 headers={'HTTP_X_SUBMIT_TIME': submit_time},
+                                 hqsubmission=False)
 
         _do_legacy_xml_submission()
 
@@ -129,21 +137,17 @@ def product_subcases(supply_point):
     return DefaultDict(create_product_subcase, product_subcase_mapping)
 
 def unpack_commtrack(xform, config):
-    # todo: I think this function has to be rewritten to work off the
-    # raw XML of the doc in order to preserve ordering
-    namespace = xform.form['@xmlns']
-    def commtrack_nodes(data):
-        for tag, nodes in data.iteritems():
-            for node in (nodes if isinstance(nodes, collections.Sequence) else [nodes]):
-                if not hasattr(node, '__iter__'):
-                    continue
-                if node.get('@xmlns', namespace) == const.COMMTRACK_REPORT_XMLNS:
-                    yield (tag, node)
-                else:
-                    for e in commtrack_nodes(node):
-                        yield e
+    xml = etree.fromstring(xform.get_xml())
 
-    for elem in commtrack_nodes(xform.form):
+    def commtrack_nodes(node):
+        for child in node:
+            if child.tag.startswith('{%s}' % const.COMMTRACK_REPORT_XMLNS):
+                yield child
+            else:
+                for e in commtrack_nodes(child):
+                    yield e
+
+    for elem in commtrack_nodes(xml):
         yield NewStockReport.from_xml(xform, config, elem)
 
 
