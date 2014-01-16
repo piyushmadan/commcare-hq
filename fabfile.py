@@ -723,6 +723,7 @@ def deploy():
         set_supervisor_config()
         if env.should_migrate:
             execute(migrate)
+            execute(migrate_couchpulse)
         execute(_do_collectstatic)
         execute(do_update_django_locales)
         execute(version_static)
@@ -1072,3 +1073,17 @@ def selenium_test():
         'pass': env.jenkins_password,
         'url': url,
     })
+
+
+@task
+def migrate_couchpulse():
+    """
+    cd /home/cchq/www/staging/code_root/submodules/couchpulse/
+    export PYTHONPATH=`pwd`
+    alembic upgrade head
+
+    """
+    with cd(os.path.join(env.code_root, 'submodules', 'couchpulse'):
+        sudo('export PYTHONPATH=`pwd`', user=env.sudo_user)
+        sudo('%s/bin/alembic upgrade head' % env.virualenv_root,
+             user=env.sudo_user)
