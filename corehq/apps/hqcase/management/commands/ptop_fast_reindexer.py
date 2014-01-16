@@ -140,8 +140,10 @@ class PtopReindexer(NoArgsCommand):
         #load entire view to disk
         print "Getting full view list: %s" % datetime.utcnow().isoformat()
         with open(self.get_dump_filename(), 'w') as fout:
-            fout.write('\n'.join(simplejson.dumps(row) for row in self.full_couch_view_iter()))
-        print "View and sequence written to disk: %s" % datetime.utcnow().isoformat()
+            # fout.write('\n'.join(simplejson.dumps(row) for row in self.full_couch_view_iter()))
+            for row in self.full_couch_view_iter():
+                fout.write("%s\n" % simplejson.dumps(row))
+        print "finished view info writing to disk"
 
     def load_seq_from_disk(self):
         """
@@ -165,7 +167,6 @@ class PtopReindexer(NoArgsCommand):
         self.runfile = options['runfile']
         self.chunk_size = options.get('chunk_size', CHUNK_SIZE)
         self.start_num = options.get('seq', 0)
-
 
     def handle(self, *args, **options):
         if not options['noinput']:
@@ -215,8 +216,10 @@ class PtopReindexer(NoArgsCommand):
                 sys.exit()
 
             self.set_seq_prefix(runparts[-1])
+        print "loading seq from disk"
         seq = self.load_seq_from_disk()
 
+        print "set index reindex settings"
         #configure index to indexing mode
         self.pillow.set_index_reindex_settings()
 
