@@ -723,6 +723,7 @@ def deploy():
         set_supervisor_config()
         if env.should_migrate:
             execute(migrate)
+            execute(migrate_couchpulse)
         execute(_do_collectstatic)
         execute(do_update_django_locales)
         execute(version_static)
@@ -990,6 +991,8 @@ def set_pillowtop_supervisorconf():
         # preview environment should not run pillowtop and index stuff
         # just rely on what's on staging
         _rebuild_supervisor_conf_file('make_supervisor_pillowtop_conf', 'supervisor_pillowtop.conf')
+    _rebuild_supervisor_conf_file('make_supervisor_conf', 'supervisor_kafka.conf')
+    _rebuild_supervisor_conf_file('make_supervisor_conf', 'supervisor_couchpulse_consumer.conf')
 
 
 @roles(*ROLES_DJANGO)
@@ -1070,3 +1073,17 @@ def selenium_test():
         'pass': env.jenkins_password,
         'url': url,
     })
+
+
+@task
+def migrate_couchpulse():
+    """
+    cd /home/cchq/www/staging/code_root/submodules/couchpulse/
+    export PYTHONPATH=`pwd`
+    alembic upgrade head
+
+    """
+    venv = env.virtualenv_root
+    with cd(os.path.join(env.code_root, 'submodules', 'couchpulse')):
+        sudo('export PYTHONPATH=`pwd` && %s/bin/alembic upgrade head' % venv,
+             user=env.sudo_user)
