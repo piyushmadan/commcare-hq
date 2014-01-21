@@ -25,3 +25,11 @@ class DefaultConsumption(Document):
             reduce=False,
             include_docs=True,
         ).one()
+
+    @classmethod
+    def get_product_default(cls, domain, product_id):
+        return cls.view('consumption/consumption_index',
+            key=[domain, product_id, None, None],
+            reduce=False,
+            include_docs=True,
+        ).one()
