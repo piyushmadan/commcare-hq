@@ -1,11 +1,15 @@
+import json
+from django.utils import translation
 from corehq import AccountingInterface, SubscriptionInterface
 from corehq.apps.accounting.forms import *
 from corehq.apps.accounting.models import *
+from corehq.apps.accounting.user_text import PricingTable
+from corehq.apps.accounting.utils import LazyEncoder
 from corehq.apps.domain.decorators import require_superuser
 from corehq.apps.hqwebapp.views import BaseSectionPageView
 from dimagi.utils.decorators.memoized import memoized
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse, HttpResponseBadRequest
 from django.utils.decorators import method_decorator
 
 
@@ -252,3 +256,16 @@ class EditSubscriptionView(AccountingSectionView):
         self.subscription.is_active = False
         self.subscription.save()
         self.subscription_canceled = True
+
+
+def pricing_table_json(request, product, locale):
+    if product not in [c[0] for c in SoftwareProductType.CHOICES]:
+        return HttpResponseBadRequest("Not a valid product")
+    if locale not in [l[0] for l in settings.LANGUAGES]:
+        return HttpResponseBadRequest("Not a supported language.")
+    translation.activate(locale)
+    table = PricingTable.get_table_by_product(product)
+    table_json = json.dumps(table, cls=LazyEncoder)
+    translation.deactivate()
+    return HttpResponse(table_json, content_type='application/json')
+
