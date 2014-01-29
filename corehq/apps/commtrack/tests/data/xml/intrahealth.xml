@@ -1,0 +1,214 @@
+<?xml version='1.0' ?>
+<data uiVersion="1" version="82" name="Bon de commande-livraison Real" xmlns:jrm="http://dev.commcarehq.org/jr/xforms"
+      xmlns="http://openrosa.org/formdesigner/intrahealht/test">
+    <total_amt_owed>0</total_amt_owed>
+    <num_products>3</num_products>
+    <products index="1">
+        <old_stock_total>0</old_stock_total>
+        <old_stock_pps>0</old_stock_pps>
+        <disp_old_stock_total/>
+        <disp_old_stock_pps/>
+        <disp_ideal_stock/>
+        <outside_receipts_amt>30</outside_receipts_amt>
+        <loss_amt>0</loss_amt>
+        <total_stock>25</total_stock>
+        <pps_stock>25</pps_stock>
+        <billed_consumption>0</billed_consumption>
+        <ideal_stock/>
+        <ideal_topup/>
+        <dispensed_ideal>n</dispensed_ideal>
+        <dispense_amt>5</dispense_amt>
+        <actual_consumption>5</actual_consumption>
+        <outside_receipts>
+            <n0:transfer dest="{case_id}" type="other" date=""
+                         xmlns:n0="http://commcarehq.org/ledger/v1">
+                <n0:entry id="{p1_id}">
+                    <n0:value section-id="stock" quantity="30"/>
+                    <n0:value section-id="stock-pps" quantity="30"/>
+                </n0:entry>
+            </n0:transfer>
+        </outside_receipts>
+        <losses>
+            <n1:transfer src="{case_id}" type="loss" date=""
+                         xmlns:n1="http://commcarehq.org/ledger/v1">
+                <n1:entry id="{p1_id}">
+                    <n1:value section-id="stock" quantity="0"/>
+                    <n1:value section-id="stock-pps" quantity="0"/>
+                </n1:entry>
+            </n1:transfer>
+        </losses>
+        <n2:balance entity-id="{case_id}" date="" xmlns:n2="http://commcarehq.org/ledger/v1">
+            <n2:entry id="{p1_id}">
+                <n2:value section-id="stock" quantity="25"/>
+                <n2:value section-id="stock-pps" quantity="25"/>
+            </n2:entry>
+        </n2:balance>
+        <top_up>
+            <n3:transfer dest="{case_id}" date="" xmlns:n3="http://commcarehq.org/ledger/v1">
+                <n3:entry id="{p1_id}">
+                    <n3:value section-id="stock" quantity="5"/>
+                </n3:entry>
+            </n3:transfer>
+        </top_up>
+        <price_per_unit>75</price_per_unit>
+        <amount_owed>0</amount_owed>
+        <review>
+            <disp_ideal_stock/>
+            <disp_pps_stock_old/>
+            <disp_total_stock_old/>
+            <disp_total_stock_new/>
+            <disp_pps_stock_new/>
+            <disp_billable_consumption/>
+            <disp_amount_owed/>
+            <disp_outside_receipts/>
+            <disp_losses/>
+            <disp_actual_consumption/>
+            <disp_dispensed/>
+            <disp_price_per_unit/>
+        </review>
+    </products>
+    <products index="2">
+        <old_stock_total>0</old_stock_total>
+        <old_stock_pps>0</old_stock_pps>
+        <disp_old_stock_total/>
+        <disp_old_stock_pps/>
+        <disp_ideal_stock/>
+        <outside_receipts_amt>20</outside_receipts_amt>
+        <loss_amt>0</loss_amt>
+        <total_stock>20</total_stock>
+        <pps_stock>20</pps_stock>
+        <billed_consumption>0</billed_consumption>
+        <ideal_stock/>
+        <ideal_topup/>
+        <dispensed_ideal>n</dispensed_ideal>
+        <dispense_amt>25</dispense_amt>
+        <actual_consumption>0</actual_consumption>
+        <outside_receipts>
+            <n4:transfer dest="{case_id}" type="other" date=""
+                         xmlns:n4="http://commcarehq.org/ledger/v1">
+                <n4:entry id="{p2_id}">
+                    <n4:value section-id="stock" quantity="20"/>
+                    <n4:value section-id="stock-pps" quantity="20"/>
+                </n4:entry>
+            </n4:transfer>
+        </outside_receipts>
+        <losses>
+            <n5:transfer src="{case_id}" type="loss" date=""
+                         xmlns:n5="http://commcarehq.org/ledger/v1">
+                <n5:entry id="{p2_id}">
+                    <n5:value section-id="stock" quantity="0"/>
+                    <n5:value section-id="stock-pps" quantity="0"/>
+                </n5:entry>
+            </n5:transfer>
+        </losses>
+        <n6:balance entity-id="{case_id}" date="" xmlns:n6="http://commcarehq.org/ledger/v1">
+            <n6:entry id="{p2_id}">
+                <n6:value section-id="stock" quantity="20"/>
+                <n6:value section-id="stock-pps" quantity="20"/>
+            </n6:entry>
+        </n6:balance>
+        <top_up>
+            <n7:transfer dest="{case_id}" date="" xmlns:n7="http://commcarehq.org/ledger/v1">
+                <n7:entry id="{p2_id}">
+                    <n7:value section-id="stock" quantity="25"/>
+                </n7:entry>
+            </n7:transfer>
+        </top_up>
+        <price_per_unit>25</price_per_unit>
+        <amount_owed>0</amount_owed>
+        <review>
+            <disp_ideal_stock/>
+            <disp_pps_stock_old/>
+            <disp_total_stock_old/>
+            <disp_total_stock_new/>
+            <disp_pps_stock_new/>
+            <disp_billable_consumption/>
+            <disp_amount_owed/>
+            <disp_outside_receipts/>
+            <disp_losses/>
+            <disp_actual_consumption/>
+            <disp_dispensed/>
+            <disp_price_per_unit/>
+        </review>
+    </products>
+    <products index="3">
+        <old_stock_total>0</old_stock_total>
+        <old_stock_pps>0</old_stock_pps>
+        <disp_old_stock_total/>
+        <disp_old_stock_pps/>
+        <disp_ideal_stock/>
+        <outside_receipts_amt>10</outside_receipts_amt>
+        <loss_amt>0</loss_amt>
+        <total_stock>5</total_stock>
+        <pps_stock>5</pps_stock>
+        <billed_consumption>0</billed_consumption>
+        <ideal_stock/>
+        <ideal_topup/>
+        <dispensed_ideal>n</dispensed_ideal>
+        <dispense_amt>5</dispense_amt>
+        <actual_consumption>5</actual_consumption>
+        <outside_receipts>
+            <n8:transfer dest="{case_id}" type="other" date=""
+                         xmlns:n8="http://commcarehq.org/ledger/v1">
+                <n8:entry id="{p3_id}">
+                    <n8:value section-id="stock" quantity="10"/>
+                    <n8:value section-id="stock-pps" quantity="10"/>
+                </n8:entry>
+            </n8:transfer>
+        </outside_receipts>
+        <losses>
+            <n9:transfer src="{case_id}" type="loss" date=""
+                         xmlns:n9="http://commcarehq.org/ledger/v1">
+                <n9:entry id="{p3_id}">
+                    <n9:value section-id="stock" quantity="0"/>
+                    <n9:value section-id="stock-pps" quantity="0"/>
+                </n9:entry>
+            </n9:transfer>
+        </losses>
+        <n10:balance entity-id="{case_id}" date="" xmlns:n10="http://commcarehq.org/ledger/v1">
+            <n10:entry id="{p3_id}">
+                <n10:value section-id="stock" quantity="5"/>
+                <n10:value section-id="stock-pps" quantity="5"/>
+            </n10:entry>
+        </n10:balance>
+        <top_up>
+            <n11:transfer dest="{case_id}" date="" xmlns:n11="http://commcarehq.org/ledger/v1">
+                <n11:entry id="{p3_id}">
+                    <n11:value section-id="stock" quantity="5"/>
+                </n11:entry>
+            </n11:transfer>
+        </top_up>
+        <price_per_unit>50</price_per_unit>
+        <amount_owed>0</amount_owed>
+        <review>
+            <disp_ideal_stock/>
+            <disp_pps_stock_old/>
+            <disp_total_stock_old/>
+            <disp_total_stock_new/>
+            <disp_pps_stock_new/>
+            <disp_billable_consumption/>
+            <disp_amount_owed/>
+            <disp_outside_receipts/>
+            <disp_losses/>
+            <disp_actual_consumption/>
+            <disp_dispensed/>
+            <disp_price_per_unit/>
+        </review>
+    </products>
+    <product_ix_1>3</product_ix_1>
+    <n12:case case_id="{case_id}" date_modified="2014-01-29T11:46:12.699-05"
+              user_id="{user_id}" xmlns:n12="http://commcarehq.org/case/transaction/v2">
+        <n12:update/>
+    </n12:case>
+    <n13:meta xmlns:n13="http://openrosa.org/jr/xforms">
+        <n13:deviceID>99000113907401</n13:deviceID>
+        <n13:timeStart>2014-01-29T11:26:42.661-05</n13:timeStart>
+        <n13:timeEnd>2014-01-29T11:46:12.699-05</n13:timeEnd>
+        <n13:username>mike</n13:username>
+        <n13:userID>{user_id}</n13:userID>
+        <n13:instanceID>{instance_id}</n13:instanceID>
+        <n14:appVersion xmlns:n14="http://commcarehq.org/xforms">CommCare ODK, version "2.11"(29263). App v83. CommCare
+            Version 2.11. Build 29263, built on: January-29-2014
+        </n14:appVersion>
+    </n13:meta>
+</data>
