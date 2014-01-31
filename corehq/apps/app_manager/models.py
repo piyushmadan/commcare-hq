@@ -15,7 +15,7 @@ from copy import deepcopy
 from urllib2 import urlopen
 from urlparse import urljoin
 
-from couchdbkit import ResourceConflict
+from couchdbkit import ResourceConflict, MultipleResultsFound
 from lxml import etree
 from django.core.cache import cache
 from django.utils.encoding import force_unicode
@@ -63,6 +63,7 @@ from .exceptions import (
     RearrangeError,
     VersioningError,
     XFormError,
+    XFormIdNotUnique,
     XFormValidationError,
 )
 
@@ -392,8 +393,15 @@ class FormBase(DocumentSchema):
 
     @classmethod
     def get_form(cls, form_unique_id, and_app=False):
-
-        d = get_db().view('app_manager/xforms_index', key=form_unique_id).one()
+        try:
+            d = get_db().view(
+                'app_manager/xforms_index',
+                key=form_unique_id
+            ).one()
+        except MultipleResultsFound as e:
+            raise XFormIdNotUnique(
+                "xform id '%s' not unique: %s" % (form_unique_id, e)
+            )
         if d:
             d = d['value']
         else:
@@ -2245,7 +2253,6 @@ class Application(ApplicationBase, TranslationMixin, HQMediaMixin):
     # ended up not using a schema because properties is a reserved word
     profile = DictProperty()
     use_custom_suite = BooleanProperty(default=False)
-    force_http = BooleanProperty(default=False)
     cloudcare_enabled = BooleanProperty(default=False)
     translation_strategy = StringProperty(default='dump-known',
                                           choices=app_strings.CHOICES.keys())
@@ -2300,13 +2307,7 @@ class Application(ApplicationBase, TranslationMixin, HQMediaMixin):
 
     @property
     def url_base(self):
-        # force_http is a deprecated hack
-        # for safety we're just special-casing the only
-        # domain that ever used it, wvmoz
-        if self.force_http and self.domain == 'wvmoz':
-            return settings.INSECURE_URL_BASE
-        else:
-            return get_url_base()
+        return get_url_base()
 
     @absolute_url_property
     def suite_url(self):

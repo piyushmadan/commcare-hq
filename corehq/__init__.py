@@ -8,6 +8,7 @@ from corehq.apps.reports.commtrack import psi_prototype
 from corehq.apps.reports.commtrack import standard as commtrack_reports
 from corehq.apps.reports.commtrack import maps as commtrack_maps
 from corehq.apps.fixtures.interface import FixtureViewInterface, FixtureEditInterface
+from corehq.apps.reports.commconnect import system_overview
 import hashlib
 from dimagi.utils.modules import to_function
 import logging
@@ -70,6 +71,8 @@ def REPORTS(project):
         sms.MessageLogReport,
         ivr.CallLogReport,
         ivr.ExpectedCallbackReport,
+        system_overview.SystemOverviewReport,
+        system_overview.SystemUsersReport
     )
 
     messaging_reports += getattr(Domain.get_module_by_name(project.name), 'MESSAGING_REPORTS', ())
@@ -190,12 +193,27 @@ INDICATOR_ADMIN_INTERFACES = (
 
 from corehq.apps.announcements.interface import (
     ManageGlobalHQAnnouncementsInterface,
-    ManageReportAnnouncementsInterface)
+    ManageReportAnnouncementsInterface,
+)
 
 ANNOUNCEMENTS_ADMIN_INTERFACES = (
     (_("Manage Announcements"), (
         ManageGlobalHQAnnouncementsInterface,
-        ManageReportAnnouncementsInterface
+        ManageReportAnnouncementsInterface,
+    )),
+)
+
+from corehq.apps.accounting.interface import (
+    AccountingInterface,
+    SubscriptionInterface,
+    SoftwarePlanInterface,
+)
+
+ACCOUNTING_ADMIN_INTERFACES = (
+    (_("Accounting Admin"), (
+        AccountingInterface,
+        SubscriptionInterface,
+        SoftwarePlanInterface,
     )),
 )
 
