@@ -43,6 +43,8 @@ def make_couchdb_tuple(app_label, couch_database_url):
 
     if app_label == 'auditcare' or app_label == 'couchlog':
         return app_label, "%s__%s" % (couch_database_url, app_label)
+    elif app_label in ['case', 'phone', 'couchforms']:
+        return app_label, "%s__forms-cases" % couch_database_url
     else:
         return app_label, couch_database_url
 
