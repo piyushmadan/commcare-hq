@@ -1,13 +1,29 @@
-var domain = 'project';
+function dateBreakdown(dateString, breakdown) {
+    var date = new Date(dateString);
+    var ret = new Array();
+    for (i in breakdown) {
+        var elem = breakdown[i];
+        if (elem === 'y') {
+            ret.push(date.getUTCFullYear());
+        } else if (elem === 'm') {
+            ret.push(date.getUTCMonth());
+        } else if (elem === 'd') {
+            ret.push(date.getUTCDay());
+        }
+    }
+    return ret;
+}
+
+var domain = 'project'
 function isCAREForm(doc) {
-    return (doc.doc_type === 'XFormInstance' &&
-        doc.domain === domain &&
-        doc.form &&
-        doc.form.meta);
+    return (doc.doc_type === 'XFormInstance'
+        && doc.domain === domain
+        && doc.form && doc.form.meta);
 }
 
 function isCARECase(doc) {
-    return (doc.doc_type === 'CommCareCase' && doc.domain === domain);
+    return (doc.doc_type === 'CommCareCase'
+        && doc.domain === domain);
 }
 
 function isCAREWomanCase(doc) {
