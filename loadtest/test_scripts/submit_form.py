@@ -113,10 +113,9 @@ class Transaction(HQTransaction):
         extras = LONG_FORM_DATA  # 5k filler
 
         block, caseid = _case_block(action=case_action)
-        # print include_image, case_action, caseid
         extras += block
 
-        if not include_image > 12/15:
+        if not include_image:
             data = _submission(extras=extras)
             submit_fn = self._normal_submit
         else:
