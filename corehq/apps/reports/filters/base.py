@@ -120,6 +120,16 @@ class BaseSingleOptionFilter(BaseReportFilter):
         return None
 
 
+class BaseToggleSingleOptionFilter(BaseSingleOptionFilter):
+    template = "reports/filters/toggle_single_option.html"
+
+    @classmethod
+    def get_value(cls, request, domain):
+        if request.GET.get("report_filter_%s_use_filter" % cls.slug, None) == 'on':
+            return super(BaseToggleSingleOptionFilter, cls).get_value(request, domain)
+        return None
+
+
 class BaseMultipleOptionFilter(BaseSingleOptionFilter):
     """
         Displays a multiselect field.

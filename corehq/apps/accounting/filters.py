@@ -1,17 +1,17 @@
 from corehq.apps.accounting.models import *
-from corehq.apps.reports.filters.base import BaseReportFilter, BaseSingleOptionFilter
+from corehq.apps.reports.filters.base import BaseReportFilter, BaseToggleSingleOptionFilter
 from dimagi.utils.dates import DateSpan
 from django.utils.translation import ugettext_noop as _
 
 
-class AccountTypeFilter(BaseSingleOptionFilter):
+class AccountTypeFilter(BaseToggleSingleOptionFilter):
     slug = 'account_type'
     label = _("Account Type")
     default_text = _("All")
     options = BillingAccountType.CHOICES
 
 
-class NameFilter(BaseSingleOptionFilter):
+class NameFilter(BaseToggleSingleOptionFilter):
     slug = 'name'
     label = _("Name")
     default_text = _("All")
@@ -29,7 +29,7 @@ def clean_options(options):
     return sorted([_ for _ in set(cleaned_options)])
 
 
-class SalesforceAccountIDFilter(BaseSingleOptionFilter):
+class SalesforceAccountIDFilter(BaseToggleSingleOptionFilter):
     slug = 'salesforce_account_id'
     label = _("Salesforce Account ID")
     default_text = _("All")
@@ -40,7 +40,7 @@ class SalesforceAccountIDFilter(BaseSingleOptionFilter):
                               for account in BillingAccount.objects.all()])
 
 
-class SubscriberFilter(BaseSingleOptionFilter):
+class SubscriberFilter(BaseToggleSingleOptionFilter):
     slug = 'subscriber'
     label = _('Subscriber')
     default_text = _("All")
@@ -51,7 +51,7 @@ class SubscriberFilter(BaseSingleOptionFilter):
                               for subscription in Subscription.objects.all()])
 
 
-class SalesforceContractIDFilter(BaseSingleOptionFilter):
+class SalesforceContractIDFilter(BaseToggleSingleOptionFilter):
     slug = 'salesforce_contract_id'
     label = _('Salesforce Contract ID')
     default_text = _("All")
@@ -62,7 +62,7 @@ class SalesforceContractIDFilter(BaseSingleOptionFilter):
                               for subscription in Subscription.objects.all()])
 
 
-class ActiveStatusFilter(BaseSingleOptionFilter):
+class ActiveStatusFilter(BaseToggleSingleOptionFilter):
     slug = 'active_status'
     label = _('Active Status')
     default_text = _("All")
@@ -78,7 +78,7 @@ INVOICE = "SEND_INVOICE"
 DO_NOT_INVOICE = "DO_NOT_INVOICE"
 
 
-class DoNotInvoiceFilter(BaseSingleOptionFilter):
+class DoNotInvoiceFilter(BaseToggleSingleOptionFilter):
     slug = 'do_not_invoice'
     label = _('Do Not Invoice')
     default_text = _('All')
@@ -155,7 +155,7 @@ class EndDateFilter(DateRangeFilter):
     label = _("End Date")
 
 
-class SoftwarePlanNameFilter(BaseSingleOptionFilter):
+class SoftwarePlanNameFilter(BaseToggleSingleOptionFilter):
     slug = 'name'
     label = _("Name")
     default_text = _("All")
@@ -165,14 +165,14 @@ class SoftwarePlanNameFilter(BaseSingleOptionFilter):
         return clean_options([(account.name, account.name) for account in SoftwarePlan.objects.all()])
 
 
-class SoftwarePlanEditionFilter(BaseSingleOptionFilter):
+class SoftwarePlanEditionFilter(BaseToggleSingleOptionFilter):
     slug = 'edition'
     label = _("Edition")
     default_text = _("All")
     options = SoftwarePlanEdition.CHOICES
 
 
-class SoftwarePlanVisibilityFilter(BaseSingleOptionFilter):
+class SoftwarePlanVisibilityFilter(BaseToggleSingleOptionFilter):
     slug = 'visibility'
     label = _("Visibility")
     default_text = _("All")

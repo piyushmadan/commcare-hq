@@ -1,0 +1,32 @@
+{% extends 'reports/filters/single_option.html' %}
+{% load hq_shared_tags %}
+{% load i18n %}
+
+{% block filter_content %}
+    <div id="{{ css_id }}_container">
+        <label class="checkbox">
+            <input name="{{ css_id }}_use_filter" type="checkbox" data-bind="checked: showFilterName" />
+            {% trans "Use Filter" %}
+        </label>
+
+        <div class="well" data-bind="visible: showFilterName">
+            {{ block.super }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block filter_js %}
+    <link href="{% static 'hqwebapp/js/lib/select2/select2.css' %}" rel="stylesheet"/>
+    <script src="{% static 'hqwebapp/js/lib/select2/select2.js' %}"></script>
+    <script type="text/javascript">
+        $(function () {
+            bindings = {
+                select_params: {{ select.options|JSON }},
+                current_selection: ko.observable('{{ select.selected|safe|default:'' }}'),
+                showFilterName: ko.observable(false)
+            }
+            ko.applyBindings(bindings, $('#{{ css_id }}_container').get(0));
+        });
+        $('#{{ css_id }}').select2();
+    </script>
+{% endblock %}
