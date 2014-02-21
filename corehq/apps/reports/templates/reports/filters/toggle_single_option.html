@@ -23,7 +23,7 @@
             bindings = {
                 select_params: {{ select.options|JSON }},
                 current_selection: ko.observable('{{ select.selected|safe|default:'' }}'),
-                showFilterName: ko.observable(false)
+                showFilterName: ko.observable({{ showFilterName|BOOL }})
             }
             ko.applyBindings(bindings, $('#{{ css_id }}_container').get(0));
         });

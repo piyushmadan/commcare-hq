@@ -124,8 +124,20 @@ class BaseToggleSingleOptionFilter(BaseSingleOptionFilter):
     template = "reports/filters/toggle_single_option.html"
 
     @classmethod
+    def use_filter(cls, request):
+        return request.GET.get("report_filter_%s_use_filter" % cls.slug, None) == 'on'
+
+    @property
+    def filter_context(self):
+        context = super(BaseToggleSingleOptionFilter, self).filter_context
+        context.update({
+            'showFilterName': self.use_filter(self.request),
+        })
+        return context
+
+    @classmethod
     def get_value(cls, request, domain):
-        if request.GET.get("report_filter_%s_use_filter" % cls.slug, None) == 'on':
+        if cls.use_filter(request):
             return super(BaseToggleSingleOptionFilter, cls).get_value(request, domain)
         return None
 
