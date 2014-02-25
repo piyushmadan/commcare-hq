@@ -972,6 +972,8 @@ class WorkerActivityReport(WorkerMonitoringReportTableBase, DatespanMixin):
             url_args = {
                 "ufilter": range(4), # include all types of users in case list report
             }
+            if self.case_type:
+                url_args.update({"case_type": self.case_type})
 
             start_date, end_date = dates_for_linked_reports(case_list=True)
             start_date_sub1 = self.datespan.startdate - datetime.timedelta(days=1)
