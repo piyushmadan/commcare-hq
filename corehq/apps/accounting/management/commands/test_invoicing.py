@@ -6,7 +6,14 @@ class Command(BaseCommand):
     help = ''
 
     def handle(self, *args, **options):
-        generator = InvoiceTemplate('my_test.pdf')
-        generator.get_pdf()
+        filename = 'my_test.pdf'
 
-        print "%s generated" % self.filename
+        try:
+            generator = InvoiceTemplate(filename)
+            generator.get_pdf()
+
+            print "%s generated" % filename
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            print tb
