@@ -9,19 +9,29 @@ class Command(BaseCommand):
         filename = 'my_test.pdf'
 
         try:
-            from_address = Address(first_line='585 Massachusetts Ave',
-                                   second_line='Suite 3',
-                                   city='Cambridge',
-                                   region='MA',
-                                   postal_code='02139',
-                                   country='USA',
-                                   phone_number='(617) 649-2214',
-                                   email_address='admin@dimagi.com',
-                                   website='http://dimagi.com')
+            from_address = Address(
+                first_line='585 Massachusetts Ave',
+                second_line='Suite 3',
+                city='Cambridge',
+                region='MA',
+                postal_code='02139',
+                country='USA',
+                phone_number='(617) 649-2214',
+                email_address='admin@dimagi.com',
+                website='http://dimagi.com',
+            )
 
-            generator = InvoiceTemplate(filename,
-                                        from_address=from_address)
-            generator.get_pdf()
+            to_address = Address(
+                first_line='Example address',
+                website='website',
+            )
+
+            template = InvoiceTemplate(
+                filename,
+                from_address=from_address,
+                to_address=to_address,
+            )
+            template.get_pdf()
 
             print "%s generated" % filename
         except Exception as e:
