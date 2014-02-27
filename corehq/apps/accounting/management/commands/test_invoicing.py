@@ -30,6 +30,7 @@ class Command(BaseCommand):
                 filename,
                 from_address=from_address,
                 to_address=to_address,
+                project_name='nick-project'
             )
             template.get_pdf()
 
