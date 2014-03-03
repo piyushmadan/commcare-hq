@@ -30,7 +30,9 @@ class Command(BaseCommand):
                 filename,
                 from_address=from_address,
                 to_address=to_address,
-                project_name='nick-project'
+                project_name='nick-project',
+                invoice_number='HQ-5001',
+                terms='Net 30'
             )
             template.get_pdf()
 
