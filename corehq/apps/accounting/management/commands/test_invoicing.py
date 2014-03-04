@@ -1,3 +1,4 @@
+import datetime
 from django.core.management import BaseCommand
 from corehq.apps.accounting.invoicing import InvoiceTemplate, Address
 
@@ -34,6 +35,20 @@ class Command(BaseCommand):
                 invoice_number='HQ-5001',
                 terms='Net 30'
             )
+
+            template.add_item(
+                datetime.date.today(),
+                "A charge on the account",
+                2,
+                1.5
+            )
+            for _ in range(15):
+                template.add_item(
+                    datetime.date.today() - datetime.timedelta(days=2),
+                    "Another charge",
+                    1,
+                    4
+                )
             template.get_pdf()
 
             print "%s generated" % filename
