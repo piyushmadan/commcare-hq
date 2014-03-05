@@ -42,7 +42,8 @@ class Command(BaseCommand):
                 2,
                 1.5
             )
-            for _ in range(15):
+
+            for _ in range(13):
                 template.add_item(
                     datetime.date.today() - datetime.timedelta(days=2),
                     "Another charge",
