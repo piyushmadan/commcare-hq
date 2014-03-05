@@ -27,6 +27,13 @@ class Command(BaseCommand):
                 website='website',
             )
 
+            bank_address = Address(
+                first_line='1 Citizens Drive',
+                city='Riverside',
+                region='RI',
+                postal_code='02915'
+            )
+
             template = InvoiceTemplate(
                 filename,
                 from_address=from_address,
@@ -35,6 +42,11 @@ class Command(BaseCommand):
                 invoice_number='HQ-5001',
                 terms='Net 30',
                 total=13.5,
+                bank_name='RBS Citizens N.A.',
+                bank_address=bank_address,
+                account_number='5555555555',
+                routing_number='555555555',
+                swift_code='AAAAAA55',
             )
 
             template.add_item(
