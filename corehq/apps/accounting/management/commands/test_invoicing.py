@@ -34,6 +34,21 @@ class Command(BaseCommand):
                 postal_code='02915'
             )
 
+            items = []
+            items.append([
+                datetime.date.today(),
+                "A charge on the account",
+                3,
+                1.5,
+            ])
+            for _ in range(13):
+                items.append([
+                    datetime.date.today() - datetime.timedelta(days=2),
+                    "Another charge",
+                    1,
+                    4,
+                ])
+
             template = InvoiceTemplate(
                 filename,
                 from_address=from_address,
@@ -41,7 +56,7 @@ class Command(BaseCommand):
                 project_name='nick-project',
                 invoice_number='HQ-5001',
                 terms='Net 30',
-                total=13.5,
+                total=sum(item[2] * item[3] for item in items),
                 bank_name='RBS Citizens N.A.',
                 bank_address=bank_address,
                 account_number='5555555555',
@@ -49,20 +64,9 @@ class Command(BaseCommand):
                 swift_code='AAAAAA55',
             )
 
-            template.add_item(
-                datetime.date.today(),
-                "A charge on the account",
-                2,
-                1.5
-            )
+            for item in items:
+                template.add_item(*item)
 
-            for _ in range(13):
-                template.add_item(
-                    datetime.date.today() - datetime.timedelta(days=2),
-                    "Another charge",
-                    1,
-                    4
-                )
             template.get_pdf()
 
             print "%s generated" % filename
