@@ -453,7 +453,11 @@ def is_form_complete(current_question):
         return False
 
 class StructuredSMSException(Exception):
-    response_text = ""
+
+    def __init__(self, *args, **kwargs):
+        response_text = kwargs.pop("response_text", "")
+        super(StructuredSMSException, self).__init__(*args, **kwargs)
+        self.response_text = response_text
 
 def handle_structured_sms(survey_keyword, survey_keyword_action, contact, verified_number, text, send_response=False, msg=None):
     domain = contact.domain
