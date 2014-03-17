@@ -22,8 +22,10 @@ from corehq.apps.accounting.interface import (
     AccountingInterface, SubscriptionInterface, SoftwarePlanInterface,
     InvoiceInterface
 )
-from corehq.apps.accounting.models import (SoftwareProductType, Invoice, BillingAccount, CreditLine, Subscription,
-                                           SoftwarePlanVersion, SoftwarePlan)
+from corehq.apps.accounting.models import (
+    SoftwareProductType, Invoice, BillingAccount, CreditLine, Subscription,
+    SoftwarePlanVersion, SoftwarePlan, CreditAdjustment
+)
 from corehq.apps.accounting.async_handlers import (FeatureRateAsyncHandler, Select2RateAsyncHandler,
                                                    SoftwareProductRateAsyncHandler, Select2BillingInfoHandler,
                                                    Select2SubscriptionInfoHandler)
@@ -450,3 +452,15 @@ class InvoiceSummaryView(AccountingSectionView):
             'title': InvoiceInterface.name,
             'url': InvoiceInterface.get_url(),
         }]
+
+    @property
+    @memoized
+    def adjustment_list(self):
+        adjustment_list = CreditAdjustment.objects.filter(invoice=self.invoice)
+        return adjustment_list.order_by('date_created')
+
+    @property
+    def page_context(self):
+        return {
+            'adjustment_list': self.adjustment_list,
+        }
