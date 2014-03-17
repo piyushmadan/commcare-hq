@@ -121,6 +121,15 @@ def domain_has_privilege(domain, privilege_slug, **assignment):
     return False
 
 
+def get_full_name(contact):
+    if not contact.first_name:
+        return contact.last_name
+    elif not contact.last_name:
+        return contact.first_name
+    else:
+        return "%s %s" % (contact.first_name, contact.last_name)
+
+
 def get_money_str(amount):
     if amount is not None:
         if amount < 0:
