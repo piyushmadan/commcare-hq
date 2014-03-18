@@ -1257,3 +1257,51 @@ class EnterprisePlanContactForm(forms.Form):
         """ % context
         send_HTML_email(subject, settings.BILLING_EMAIL, html_content, text_content,
                         email_from=settings.DEFAULT_FROM_EMAIL)
+
+
+class AdjustBalanceForm(forms.Form):
+    method = forms.ChoiceField(
+        choices=(
+            ('salesforce', 'Salesforce'),
+            ('check', 'Check'),
+            ('electronic', 'Electronic'),
+            ('correction', 'Correction'),
+        ),
+    )
+    note = forms.CharField(
+        required=False,
+        widget=forms.Textarea,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super(AdjustBalanceForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form-horizontal"
+        self.helper.layout = crispy.Layout(
+            FormActions(
+                crispy.Div(
+                    crispy.Fieldset(
+                        '',
+                        #"What type of adjustment would you like to make?",
+                        'method',
+                        'note',
+                    ),
+                    css_class='modal-body',
+                ),
+                crispy.Div(
+                    crispy.ButtonHolder(
+                        crispy.Submit(
+                            'submit',
+                            'Submit',
+                            data_loading_text='Submitting...',
+                            ),
+                        crispy.Button(
+                            'close',
+                            'Close',
+                            data_dismiss='modal',
+                        ),
+                    ),
+                    css_class='modal-footer',
+                ),
+            ),
+        )
