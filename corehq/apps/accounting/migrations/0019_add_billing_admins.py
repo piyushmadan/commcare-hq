@@ -3,24 +3,22 @@ import datetime
 from south.db import db
 from south.v2 import DataMigration
 from django.db import models
-from corehq.apps.orgs.models import Team
+from corehq.apps.accounting.models import BillingAccountType
 from corehq.apps.users.models import WebUser
 
 
 class Migration(DataMigration):
 
     def forwards(self, orm):
-        for subscription in orm.Subscription.objects.all():
+        for subscription in orm.Subscription.objects.filter(
+                account__account_type=BillingAccountType.CONTRACT):
             domain = subscription.subscriber.domain
-            web_users = WebUser.by_domain(domain)
-            teams = Team.get_by_domain(domain)
-            for team in teams:
-                for user in team.get_members():
-                    if user.get_id not in [web_user.get_id for web_user in web_users]:
-                        web_users.append(user)
-            for user in web_users:
-                if user.get_role(domain=domain).get_qualified_id() == "admin":
-                    billing_admin, _ = orm.BillingAccountAdmin.objects.get_or_create(web_user=user.get_email())
+            for user in WebUser.by_domain(domain):
+                if user.is_domain_admin(domain=domain):
+                    billing_admin, _ = \
+                        orm.BillingAccountAdmin.objects.get_or_create(
+                            web_user=user.get_email()
+                        )
                     subscription.account.billing_admins.add(billing_admin)
 
 
