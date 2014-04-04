@@ -28,8 +28,8 @@ class MCHBaseReport(CustomProjectReport, CaseListReport):
     model = None
 
     fields = [
-        'corehq.apps.reports.fields.GroupField',
-        'corehq.apps.reports.fields.SelectOpenCloseField',
+        'corehq.apps.reports.filters.select.GroupFilter',
+        'corehq.apps.reports.filters.select.SelectOpenCloseFilter',
     ]
 
     @property
@@ -76,8 +76,8 @@ class MCHBaseReport(CustomProjectReport, CaseListReport):
     @property
     @memoized
     def es_query(self):
-        query = self.build_query(case_type=self.case_type, filter=self.case_filter,
-                                 status=self.case_status, owner_ids=self.case_owners)
+        query = self.build_query(case_type=self.case_type, afilter=self.case_filter,
+                                 status=self.case_status)
         return query
 
     @property

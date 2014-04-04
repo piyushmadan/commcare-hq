@@ -7,7 +7,7 @@ from django.utils.safestring import mark_safe
 import pytz
 from corehq import Domain
 from corehq.apps import reports
-from corehq.apps.app_manager.models import get_app
+from corehq.apps.app_manager.models import get_app, Form
 from corehq.apps.app_manager.util import ParentCasePropertyBuilder
 from corehq.apps.domain.middleware import CCHQPRBACMiddleware
 from corehq.apps.reports.display import xmlns_to_name
@@ -654,6 +654,12 @@ class FormExportSchema(HQExportSchema):
 
     def get_default_order(self):
         return {'#': self.question_order}
+
+    def uses_cases(self):
+        form = self.app.get_form_by_xmlns(self.xmlns)
+        if form and isinstance(form, Form):
+            return bool(form.active_actions())
+        return False
 
 
 class FormDeidExportSchema(FormExportSchema):

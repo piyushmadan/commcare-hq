@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, validate_slug
 from django import forms
 from django.core.urlresolvers import reverse
+from django.db.models import ProtectedError
 from django.forms.util import ErrorList
 from django.template.loader import render_to_string
 from django.utils.dates import MONTHS
@@ -59,28 +60,18 @@ from corehq.apps.accounting.models import (
 )
 
 
-class BillingAccountForm(forms.Form):
+class BillingAccountBasicForm(forms.Form):
     name = forms.CharField(label="Name")
     salesforce_account_id = forms.CharField(label=_("Salesforce Account ID"),
                                             max_length=80,
                                             required=False)
     currency = forms.ChoiceField(label="Currency")
 
-    contact_emails = forms.CharField(
+    emails = forms.CharField(
         label=_('Additional Contact Emails'),
         widget=forms.Textarea,
         max_length=BillingContactInfo._meta.get_field('emails').max_length,
     )
-    first_name = forms.CharField(label='First Name', required=False)
-    last_name = forms.CharField(label='Last Name', required=False)
-    company_name = forms.CharField(label='Company Name', required=False)
-    phone_number = forms.CharField(label='Phone Number', required=False)
-    address_line_1 = forms.CharField(label='Address Line 1')
-    address_line_2 = forms.CharField(label='Address Line 2', required=False)
-    city = forms.CharField()
-    region = forms.CharField(label="State/Province/Region")
-    postal_code = forms.CharField(label="Postal Code")
-    country = forms.CharField()
 
     def __init__(self, account, *args, **kwargs):
         if account is not None:
@@ -89,64 +80,38 @@ class BillingAccountForm(forms.Form):
                 'name': account.name,
                 'salesforce_account_id': account.salesforce_account_id,
                 'currency': account.currency.code,
-                'contact_emails': contact_info.emails,
-                'first_name': contact_info.first_name,
-                'last_name': contact_info.last_name,
-                'company_name': contact_info.company_name,
-                'phone_number': contact_info.phone_number,
-                'address_line_1': contact_info.first_line,
-                'address_line_2': contact_info.second_line,
-                'city': contact_info.city,
-                'region': contact_info.state_province_region,
-                'postal_code': contact_info.postal_code,
-                'country': contact_info.country,
+                'emails': contact_info.emails,
             }
         else:
             kwargs['initial'] = {
                 'currency': Currency.get_default().code,
             }
-        super(BillingAccountForm, self).__init__(*args, **kwargs)
-        if account is None:
-            self.fields['address_line_1'].required = False
-            self.fields['city'].required = False
-            self.fields['region'].required = False
-            self.fields['postal_code'].required = False
-            self.fields['country'].required = False
+        super(BillingAccountBasicForm, self).__init__(*args, **kwargs)
         self.fields['currency'].choices =\
             [(cur.code, cur.code) for cur in Currency.objects.order_by('code')]
         self.helper = FormHelper()
+        self.helper.form_class = "form-horizontal"
         self.helper.layout = crispy.Layout(
             crispy.Fieldset(
-            'Basic Information',
+                'Basic Information',
                 'name',
-                'contact_emails',
+                crispy.Field('emails', css_class='input-xxlarge'),
                 'salesforce_account_id',
                 'currency',
             ),
-            crispy.Fieldset(
-            'Contact Information',
-                'first_name',
-                'last_name',
-                'company_name',
-                'phone_number',
-                'address_line_1',
-                'address_line_2',
-                'city',
-                'region',
-                'postal_code',
-                crispy.Field('country', css_class="input-xlarge",
-                             data_countryname=dict(COUNTRIES).get(
-                                 args[0].get('country') if len(args) > 0 else account.billingcontactinfo.country, '')),
-            ) if account is not None else None,
             FormActions(
                 crispy.ButtonHolder(
-                    crispy.Submit('account', 'Update Account' if account is not None else 'Add New Account')
+                    crispy.Submit(
+                        'account_basic',
+                        'Update Basic Information'
+                        if account is not None else 'Add New Account'
+                    )
                 )
             )
         )
 
-    def clean_contact_emails(self):
-        account_contact_emails = self.cleaned_data['contact_emails']
+    def clean_emails(self):
+        account_contact_emails = self.cleaned_data['emails']
         if account_contact_emails != '':
             invalid_emails = []
             for email in account_contact_emails.split(','):
@@ -174,12 +139,12 @@ class BillingAccountForm(forms.Form):
         contact_info, _ = BillingContactInfo.objects.get_or_create(
             account=account,
         )
-        contact_info.emails = self.cleaned_data['contact_emails']
+        contact_info.emails = self.cleaned_data['emails']
         contact_info.save()
 
         return account
 
-    def update_account_and_contacts(self, account):
+    def update_basic_info(self, account):
         account.name = self.cleaned_data['name']
         account.salesforce_account_id = \
             self.cleaned_data['salesforce_account_id']
@@ -191,7 +156,77 @@ class BillingAccountForm(forms.Form):
         contact_info, _ = BillingContactInfo.objects.get_or_create(
             account=account,
         )
-        contact_info.emails = self.cleaned_data['contact_emails']
+        contact_info.emails = self.cleaned_data['emails']
+        contact_info.save()
+
+
+class BillingAccountContactForm(forms.Form):
+    first_name = forms.CharField(label='First Name', required=False)
+    last_name = forms.CharField(label='Last Name', required=False)
+    company_name = forms.CharField(label='Company Name', required=False)
+    phone_number = forms.CharField(label='Phone Number', required=False)
+    address_line_1 = forms.CharField(label='Address Line 1')
+    address_line_2 = forms.CharField(label='Address Line 2', required=False)
+    city = forms.CharField()
+    region = forms.CharField(label="State/Province/Region")
+    postal_code = forms.CharField(label="Postal Code")
+    country = forms.CharField()
+
+    def __init__(self, account, *args, **kwargs):
+        contact_info, _ = BillingContactInfo.objects.get_or_create(
+            account=account,
+        )
+        kwargs['initial'] = {
+            'first_name': contact_info.first_name,
+            'last_name': contact_info.last_name,
+            'company_name': contact_info.company_name,
+            'phone_number': contact_info.phone_number,
+            'address_line_1': contact_info.first_line,
+            'address_line_2': contact_info.second_line,
+            'city': contact_info.city,
+            'region': contact_info.state_province_region,
+            'postal_code': contact_info.postal_code,
+            'country': contact_info.country,
+        }
+        super(BillingAccountContactForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form-horizontal"
+        self.helper.layout = crispy.Layout(
+            crispy.Fieldset(
+                'Contact Information',
+                'first_name',
+                'last_name',
+                'company_name',
+                'phone_number',
+                'address_line_1',
+                'address_line_2',
+                'city',
+                'region',
+                'postal_code',
+                crispy.Field(
+                    'country',
+                    css_class="input-xlarge",
+                    data_countryname=dict(COUNTRIES).get(
+                        args[0].get('country') if len(args) > 0
+                        else account.billingcontactinfo.country,
+                        ''
+                    )
+                ),
+            ),
+            FormActions(
+                crispy.ButtonHolder(
+                    crispy.Submit(
+                        'account_contact',
+                        'Update Contact Information'
+                    )
+                )
+            ),
+        )
+
+    def update_contact_info(self, account):
+        contact_info, _ = BillingContactInfo.objects.get_or_create(
+            account=account,
+        )
         contact_info.first_name = self.cleaned_data['first_name']
         contact_info.last_name = self.cleaned_data['last_name']
         contact_info.company_name = self.cleaned_data['company_name']
@@ -305,7 +340,10 @@ class SubscriptionForm(forms.Form):
             })
 
             self.fields['start_date'].initial = subscription.date_start.isoformat()
-            self.fields['end_date'].initial = subscription.date_end
+            self.fields['end_date'].initial = (
+                subscription.date_end.isoformat()
+                if subscription.date_end is not None else subscription.date_end
+            )
             self.fields['delay_invoice_until'].initial = subscription.date_delay_invoicing
             self.fields['domain'].initial = subscription.subscriber.domain
             self.fields['salesforce_contract_id'].initial = subscription.salesforce_contract_id
@@ -416,40 +454,72 @@ class SubscriptionForm(forms.Form):
             web_user=self.web_user,
         )
 
-    def update_subscription(self, subscription):
-        kwargs = {
-            'salesforce_contract_id': self.cleaned_data['salesforce_contract_id'],
-            'do_not_invoice': self.cleaned_data['do_not_invoice'],
-            'web_user': self.web_user,
-        }
+    def update_subscription(self):
+        self.subscription.update_subscription(
+            date_end=self.cleaned_data['end_date'],
+            date_delay_invoicing=self.cleaned_data['delay_invoice_until'],
+            do_not_invoice=self.cleaned_data['do_not_invoice'],
+            salesforce_contract_id=self.cleaned_data['salesforce_contract_id'],
+            web_user=self.web_user
+        )
 
-        if self.fields['start_date'].required:
-            kwargs.update({
-                'date_start': self.cleaned_data['start_date'],
-            })
 
-        if subscription.date_end is None or subscription.date_end > datetime.date.today():
-            kwargs.update({
-                'date_end': self.cleaned_data['end_date'],
-            })
-        else:
-           kwargs.update({
-                'date_end': subscription.date_end,
-            })
+class ChangeSubscriptionForm(forms.Form):
+    subscription_change_note = forms.CharField(
+        label=_("Note"),
+        required=True,
+        widget=forms.Textarea,
+    )
+    new_plan_product = forms.ChoiceField(
+        label=_("Core Product"), initial=SoftwareProductType.COMMCARE,
+        choices=SoftwareProductType.CHOICES,
+    )
+    new_plan_edition = forms.ChoiceField(
+        label=_("Edition"), initial=SoftwarePlanEdition.ENTERPRISE,
+        choices=SoftwarePlanEdition.CHOICES,
+    )
+    new_plan_version = forms.CharField(label=_("New Software Plan"))
+    new_date_end = forms.DateField(
+        label=_("End Date"), widget=forms.DateInput(), required=False
+    )
 
-        if (subscription.date_delay_invoicing is None
-            or subscription.date_delay_invoicing > datetime.date.today()):
-            kwargs.update({
-                'date_delay_invoicing': self.cleaned_data['delay_invoice_until'],
-            })
-        else:
-            kwargs.update({
-                'date_delay_invoicing': subscription.date_delay_invoicing,
-            })
+    def __init__(self, subscription, web_user, *args, **kwargs):
+        self.subscription = subscription
+        self.web_user = web_user
+        super(ChangeSubscriptionForm, self).__init__(*args, **kwargs)
 
-        new_plan_version = SoftwarePlanVersion.objects.get(id=self.cleaned_data['plan_version'])
+        if self.subscription.date_end is not None:
+            self.fields['new_date_end'].initial = subscription.date_end
 
-        return subscription.change_plan(new_plan_version, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_class = "form-horizontal"
+        self.helper.layout = crispy.Layout(
+            crispy.Fieldset(
+                "Change Subscription",
+                crispy.Field('new_date_end', css_class="date-picker"),
+                'new_plan_product',
+                'new_plan_edition',
+                crispy.Field(
+                    'new_plan_version', css_class="input-xxlarge",
+                    placeholder="Search for Software Plan"
+                ),
+                'subscription_change_note',
+            ),
+            FormActions(
+                StrictButton(
+                    "Change Subscription",
+                    type="submit",
+                    css_class="btn-primary",
+                ),
+            ),
+        )
+
+    def change_subscription(self):
+        new_plan_version = SoftwarePlanVersion.objects.get(id=self.cleaned_data['new_plan_version'])
+        return self.subscription.change_plan(
+            new_plan_version, date_end=self.cleaned_data['new_date_end'],
+            web_user=self.web_user
+        )
 
 
 class CreditForm(forms.Form):
@@ -1293,9 +1363,55 @@ class TriggerInvoiceForm(forms.Form):
                 community_sub.subscriptionadjustment_related.all().delete()
                 community_sub.creditline_set.all().delete()
                 invoice.delete()
-                community_sub.delete()
+                try:
+                    community_sub.delete()
+                except ProtectedError:
+                    pass
             else:
                 invoice.delete()
+
+
+class TriggerBookkeeperEmailForm(forms.Form):
+    month = forms.ChoiceField(label="Invoice Month")
+    year = forms.ChoiceField(label="Invoice Year")
+    emails = forms.CharField(label="Email To")
+
+    def __init__(self, *args, **kwargs):
+        super(TriggerBookkeeperEmailForm, self).__init__(*args, **kwargs)
+        today = datetime.date.today()
+
+        self.fields['month'].initial = today.month
+        self.fields['month'].choices = MONTHS.items()
+        self.fields['year'].initial = today.year
+        self.fields['year'].choices = [
+            (y, y) for y in range(today.year, 2012, -1)
+        ]
+
+        self.helper = FormHelper()
+        self.helper.form_class = 'form form-horizontal'
+        self.helper.layout = crispy.Layout(
+            crispy.Fieldset(
+                'Trigger Bookkeeper Email Details',
+                crispy.Field('emails', css_class='input-xxlarge'),
+                crispy.Field('month', css_class="input-large"),
+                crispy.Field('year', css_class="input-large"),
+            ),
+            FormActions(
+                StrictButton(
+                    "Trigger Bookkeeper Email",
+                    css_class="btn-primary",
+                    type="submit",
+                ),
+            )
+        )
+
+    def trigger_email(self):
+        from corehq.apps.accounting.tasks import send_bookkeeper_email
+        send_bookkeeper_email(
+            month=int(self.cleaned_data['month']),
+            year=int(self.cleaned_data['year']),
+            emails=self.cleaned_data['emails'].split(',')
+        )
 
 
 class AdjustBalanceForm(forms.Form):
@@ -1517,6 +1633,5 @@ class ResendEmailForm(forms.Form):
     def resend_email(self):
         contact_emails = self.invoice.email_recipients
         contact_emails += self.cleaned_data['additional_recipients']
-        BillingRecord.generate_record(
-            self.invoice, contact_emails=contact_emails
-        )
+        record = BillingRecord.generate_record(self.invoice)
+        record.send_email(contact_emails=contact_emails)
