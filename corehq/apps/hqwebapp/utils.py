@@ -71,6 +71,7 @@ class InvitationView():
         send_confirmation_email(invitation)
 
     def __call__(self, request, invitation_id, **kwargs):
+        raise Exception()
         logging.warning("Don't use this view in more apps until it gets cleaned up.")
         # add the correct parameters to this instance
         self.request = request
