@@ -17,7 +17,7 @@
             $("#add_commcare_account_form .help-block").hide();
             {% endif %}
 
-            $('#add_commcare_account_form button').click(function () {
+            $('#submit_mobile_worker').click(function () {
                 $(this).text("{% trans 'Creating' %}")
                        .prepend('<i class="icon-refresh icon-spin"></i> ')
                        .addClass('btn disabled')
@@ -26,6 +26,15 @@
             });
 
         });
+    </script>
+    <script type="text/javascript">
+    /*
+        $('#submit_mobile_worker').click(function () {
+            console.log('clicked');
+            $('#submit_mobile_worker').attr('disabled', 'disabled');
+            $(this).parents('form').submit();
+        });
+    */
     </script>
 {% endblock %}
 
