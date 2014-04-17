@@ -210,7 +210,14 @@ class CommCareAccountForm(forms.Form):
             ),
             FormActions(
                 ButtonHolder(
-                    Submit('submit', 'Create Mobile Worker')
+                    Submit(
+                        'create_mobile_worker', 'Create Mobile Worker',
+                        css_id="submit_mobile_worker",
+                        onclick=(
+                            "document.getElementById('submit_mobile_worker').disabled = true;"
+                            "document.getElementById('add_commcare_account_form').submit()"
+                        ),
+                    )
                 )
             )
         )
