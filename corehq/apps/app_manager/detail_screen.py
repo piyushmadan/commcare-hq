@@ -348,6 +348,11 @@ class Address(HideShortColumn):
     template_width = 0
 
 
+@register_format_type('picture')
+class Picture(HideShortColumn):
+    template_form = 'image'
+
+
 @register_type_processor(sx.FIELD_TYPE_PROPERTY)
 class PropertyXpathGenerator(BaseXpathGenerator):
     @property
