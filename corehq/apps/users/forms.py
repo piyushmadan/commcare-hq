@@ -12,9 +12,16 @@ from django.utils.translation import ugettext as _, ugettext_noop, ugettext_lazy
 from django.template.loader import get_template
 from django.template import Context
 from django_countries.countries import COUNTRIES
+from mailchimp import (
+    ListAlreadySubscribedError,
+    ListNotSubscribedError,
+)
 from corehq.apps.domain.forms import EditBillingAccountInfoForm
 from corehq.apps.locations.models import Location
-from corehq.apps.registration.utils import unsubscribe_commcare_users
+from corehq.apps.registration.utils import (
+    subscribe_commcare_users,
+    unsubscribe_commcare_users,
+)
 from corehq.apps.users.models import CouchUser
 from corehq.apps.users.util import format_username
 from corehq.apps.app_manager.models import validate_lang
@@ -72,7 +79,15 @@ class BaseUpdateUserForm(forms.Form):
                 is_update_successful = True
             else:
                 if self.cleaned_data[prop]:
-                    unsubscribe_commcare_users(existing_user)
+                    try:
+                        unsubscribe_commcare_users(existing_user)
+                    except ListNotSubscribedError:
+                        pass
+                else:
+                    try:
+                        subscribe_commcare_users(existing_user)
+                    except ListAlreadySubscribedError:
+                        pass
 
         if is_update_successful:
             existing_user.save()
