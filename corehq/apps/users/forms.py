@@ -66,8 +66,9 @@ class BaseUpdateUserForm(forms.Form):
             is_update_successful = True
 
         for prop in self.direct_properties:
-            setattr(existing_user, prop, self.cleaned_data[prop])
-            is_update_successful = True
+            if prop != 'email_opt_out':
+                setattr(existing_user, prop, self.cleaned_data[prop])
+                is_update_successful = True
 
         if is_update_successful:
             existing_user.save()
