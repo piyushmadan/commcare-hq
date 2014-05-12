@@ -31,6 +31,8 @@ def subscribe_commcare_users(user):
         merge_vars={
             'FNAME': user.first_name,
             'LNAME': user.last_name,
+        } if user.first_name else {
+            'FNAME': user.last_name or user.email,
         },
     )
 
