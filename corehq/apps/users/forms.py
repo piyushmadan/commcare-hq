@@ -15,6 +15,7 @@ from django_countries.countries import COUNTRIES
 from mailchimp import (
     ListAlreadySubscribedError,
     ListNotSubscribedError,
+    ValidationError,
 )
 from corehq.apps.domain.forms import EditBillingAccountInfoForm
 from corehq.apps.locations.models import Location
@@ -73,11 +74,23 @@ class BaseUpdateUserForm(forms.Form):
             existing_user.save()
             is_update_successful = True
 
+        if existing_user.email != self.cleaned_data['email']:
+            try:
+                unsubscribe_commcare_users(existing_user)
+            except (ListNotSubscribedError, ValidationError):
+                pass
+            existing_user.email = self.cleaned_data['email']
+            existing_user.save()
+            try:
+                subscribe_commcare_users(existing_user)
+            except (ListAlreadySubscribedError, ValidationError):
+                pass
+
         for prop in self.direct_properties:
             if prop != 'email_opt_out':
                 setattr(existing_user, prop, self.cleaned_data[prop])
                 is_update_successful = True
-            else:
+            elif existing_user.email:
                 if self.cleaned_data[prop]:
                     try:
                         unsubscribe_commcare_users(existing_user)
