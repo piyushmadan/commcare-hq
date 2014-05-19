@@ -3,53 +3,22 @@
 {% load hq_shared_tags %}
 {% load i18n %}
 
-{% block underscore %}
-    <script src="{% static 'formdesigner/src/js/lib/underscore-1.5.2.js' %}"></script>
-{% endblock %}
-
-{% block head %}
-    {{ block.super }}
-    <link href="{% static 'formdesigner/dist/vellum.min.css' %}" rel="stylesheet" />
-{% endblock %}
-
 {% block js %}{{ block.super }}
-    <script src="{% static 'formdesigner/dist/vellum.min.js' %}"></script>
+<script src="{% static 'hqwebapp/js/lib/require.js' %}"></script>
+<script src="{% static 'hqwebapp/js/lib/xrayquire.js' %}"></script>
 
-    {% include 'hqmedia/partials/multimedia_js.html' %} {# todo We should have a discussion at some point how we'd like to organize this in the future. #}
 {% endblock %}
 
 {% block js-inline %}{{ block.super }}
     <script>
-        $(function () {
 
-            $("#edit").hide();
-            $('footer').addClass('fixed-footer');
-
-            var formSrc = {{ form.source|to_javascript_string }};
-            formdesigner.launch({
-                rootElement: $("#formdesigner"),
-                staticPrefix: '/static/formdesigner/src/',
+        var VELLUM_OPTIONS = {
+            core: {
+                form: {{ form.source|to_javascript_string }},
+                formName: "{{ form.name|trans:app.langs|escapejs }}",
+                saveType: 'patch',
                 saveUrl: '{% url "edit_form_attr" domain app.id form.get_unique_id "xform" %}',
                 patchUrl: '{% url "patch_xform" domain app.id form.get_unique_id %}',
-                multimediaConfig: {
-                    uploadUrls: {
-                        image: '{% url "hqmedia_uploader_image" domain app.id %}',
-                        audio: '{% url "hqmedia_uploader_audio" domain app.id %}',
-                        video: '{% url "hqmedia_uploader_video" domain app.id %}'
-                    },
-                    swfURL: '{% static 'hqmedia/yui/assets/flashuploader.swf' %}',
-                    objectMap: {{ multimedia_object_map|JSON }},
-                    uploadControllerClass: HQMediaFileUploadController
-                },
-                windowConfig: {
-                    bottomOffset: $('footer').outerHeight(),
-                    leftOffset: function () {
-                        return $('.sidebar').outerWidth() + 2;
-                    },
-                    topOffset: function () {
-                        return $('header').outerHeight() + $('.hq-page-header-container').outerHeight();
-                    }
-                },
                 allowedDataNodeReferences: [
                     "meta/deviceID",
                     "meta/instanceID",
@@ -58,18 +27,59 @@
                     "meta/timeStart",
                     "meta/timeEnd"
                 ],
-                saveType: 'patch',
-                form: formSrc,
+            },
+            javaRosa: {
                 langs: {{ app.langs|JSON }},
-                formName: "{{ form.name|trans:app.langs|escapejs }}",
                 displayLanguage: {{ lang|JSON }},
+            },
+            uploader: {
+                uploadUrls: {
+                    image: '{% url "hqmedia_uploader_image" domain app.id %}',
+                    audio: '{% url "hqmedia_uploader_audio" domain app.id %}',
+                    video: '{% url "hqmedia_uploader_video" domain app.id %}'
+                },
+                swfURL: '{% static 'formdesigner/lib/MediaUploader/flashuploader.swf' %}',
+                objectMap: {{ multimedia_object_map|JSON }},
                 sessionid: {{ sessionid|JSON }}
-            });
-            formdesigner.on('form-saved', function (args) {
-                var response = args.response;
-                COMMCAREHQ.app_manager.updateDOM(response.update);
+            },
+            windowManager: {
+                bottomOffset: $('footer').outerHeight(),
+                leftOffset: function () {
+                    return $('.sidebar').outerWidth() + 2;
+                },
+                topOffset: function () {
+                    return $('header').outerHeight() + 
+                        $('.hq-page-header-container').outerHeight();
+                }
+            }
+        };
+
+        require.config({
+            packages: [
+                {
+                    name: 'jquery.vellum',
+                    location: "{% static 'formdesigner' %}",
+                    main: 'main.js'
+                }
+            ]
+        });
+
+        require(["jquery.vellum/require-config"], function () {
+            require(["jquery", "jquery.vellum"], function ($) {
+                $(function () {
+                    $("#edit").hide();
+                    $('footer').addClass('fixed-footer');
+
+                    $('#formdesigner').vellum(VELLUM_OPTIONS);
+
+                    // todo: this
+/*                    formdesigner.on('form-saved', function (args) {
+                        COMMCAREHQ.app_manager.updateDOM(args.response.update);
+                    });*/
+                });
             });
         });
+
     </script>
 {% endblock %}
 
