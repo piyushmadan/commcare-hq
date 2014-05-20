@@ -305,7 +305,7 @@ class AutoSelectCase(DocumentSchema):
                         this represents the 'case_tag' for the case.
                         The mode 'user' doesn't require a value_source.
         value_key       The actual field that contains the case ID. Can be a case
-                        property or a user data key or a fixture field name or the raw
+                        index or a user data key or a fixture field name or the raw
                         xpath expression.
 
     """
@@ -315,10 +315,18 @@ class AutoSelectCase(DocumentSchema):
 
 
 class LoadUpdateAction(AdvancedAction):
+    """
+    details_module:     Use the case list configuration from this module to show the cases.
+    preload:            Value from the case to load into the form.
+    auto_select:        Configuration for auto-selecting the case
+    show_product_stock: If True list the product stock using the module's Product List configuration.
+    product_program:    Only show products for this CommTrack program.
+    """
     details_module = StringProperty()
     preload = DictProperty()
     auto_select = SchemaProperty(AutoSelectCase, default=None)
     show_product_stock = BooleanProperty(default=False)
+    product_program = StringProperty()
 
     def get_paths(self):
         for path in super(LoadUpdateAction, self).get_paths():
@@ -1466,7 +1474,8 @@ class AdvancedForm(IndexedFormBase, NavMenuItemMediaMixin):
             except ValueError:
                 errors.append({'type': 'circular ref', 'case_tag': action.case_tag})
 
-            if action.auto_select and action.auto_select.mode == AUTO_SELECT_CASE:
+            if isinstance(action, LoadUpdateAction) and \
+                    action.auto_select and action.auto_select.mode == AUTO_SELECT_CASE:
                 case_tag = action.auto_select.value_source
                 if not self.actions.get_action_from_tag(case_tag):
                     errors.append({'type': 'auto select ref', 'case_tag': action.case_tag})
@@ -2152,6 +2161,10 @@ class ApplicationBase(VersionedDoc, SnapshotMixin):
     build_comment = StringProperty()
     comment_from = StringProperty()
     build_broken = BooleanProperty(default=False)
+    # not used yet, but nice for tagging/debugging
+    # currently only canonical value is 'incomplete-build',
+    # for when build resources aren't found where they should be
+    build_broken_reason = StringProperty()
 
     # watch out for a past bug:
     # when reverting to a build that happens to be released

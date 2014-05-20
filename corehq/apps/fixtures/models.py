@@ -23,6 +23,8 @@ class FixtureDataType(Document):
 
     @classmethod
     def wrap(cls, obj):
+        if not obj["doc_type"] == "FixtureDataType":
+            raise ResourceNotFound
         if obj["fields"] and isinstance(obj['fields'][0], basestring):
             obj['fields'] = [{'field_name': f, 'properties': []} for f in obj['fields']]
         return super(FixtureDataType, cls).wrap(obj)
@@ -125,22 +127,29 @@ class FixtureDataItem(Document):
 
     @classmethod
     def wrap(cls, obj):
+        if not obj["doc_type"] == "FixtureDataItem":
+            raise ResourceNotFound
         if not obj["fields"]:
             return super(FixtureDataItem, cls).wrap(obj)
         
         is_of_new_type = False
-        fields_dict = {}        
+        fields_dict = {}
+
+        def _is_new_type(field_val):
+            old_types = (basestring, int, float)
+            return field_val is not None and not isinstance(field_val, old_types)
+
         for field in obj['fields']:
-            if obj['fields'][field] is not None and not isinstance(obj['fields'][field], basestring) and not isinstance(obj['fields'][field], int):
+            field_val = obj['fields'][field]
+            if _is_new_type(field_val):
+                # assumes all-or-nothing conversion of old types to new
                 is_of_new_type = True
                 break
             fields_dict[field] = {
-                "field_list": [
-                    {
-                        'field_value': obj['fields'][field] if not isinstance(obj['fields'][field], int) else str(obj['fields'][field]),
-                        'properties': {}
-                    }
-                ]
+                "field_list": [{
+                    'field_value': str(field_val) if not isinstance(field_val, basestring) else field_val,
+                    'properties': {}
+                }]
             }
         if not is_of_new_type:
             obj['fields'] = fields_dict

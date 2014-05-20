@@ -47,6 +47,15 @@
                     {% trans "Display the Product Stock for this Supply Point after it is selected" %}
                 </label>
             </div>
+            <!-- ko if: show_product_stock_var -->
+            <div class="control-group" style="margin-left: 25px;">
+                <label class="control-label">{% trans "Only show products for this program:" %}</label>
+                <select data-bind="optstr: $root.programs,
+                    value: product_program,
+                    edit: $root.edit">
+                </select>
+            </div>
+            <!-- /ko -->
             <!-- /ko -->
             {% endif %}
 
@@ -165,12 +174,12 @@
 
 <script type="text/html" id="auto-select:case">
     &nbsp;
-    {% trans "Select case:" %}
+    {% trans "Case containing index:" %}
     <select data-bind="optstr: $parent.config.caseConfigViewModel.getCaseTags('auto-select', $parent),
         value: value_source,
         edit: $root.edit">
     </select>
-    {% trans "Case property:" %}
+    {% trans "Index name:" %}
     <input type="text" class="input-medium" data-bind="value: value_key" />
 </script>
 

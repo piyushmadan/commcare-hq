@@ -1,15 +1,16 @@
 from django.utils.translation import ugettext as _
+
 from corehq.apps.reports.datatables import DataTablesHeader, DataTablesColumn
 from corehq.apps.reports.filters.fixtures import AsyncLocationFilter
 from corehq.apps.reports.filters.select import MonthFilter, YearFilter
-from corehq.apps.reports.standard import MonthYearMixin, CustomProjectReport
+from corehq.apps.reports.standard import MonthYearMixin
 from corehq.apps.reports.standard.cases.basic import CaseListReport
-from custom.m4change.reports import validate_report_parameters, get_location_hierarchy_by_id, get_CCT_user_ids
+from custom.m4change.reports import validate_report_parameters, get_location_hierarchy_by_id
 from custom.m4change.reports.reports import M4ChangeReport
 from custom.m4change.reports.sql_data import ProjectIndicatorsCaseSqlData
 
 
-class ProjectIndicatorsReport(MonthYearMixin, CustomProjectReport, CaseListReport, M4ChangeReport):
+class ProjectIndicatorsReport(MonthYearMixin, CaseListReport, M4ChangeReport):
     ajax_pagination = False
     asynchronous = True
     exportable = True
@@ -32,9 +33,8 @@ class ProjectIndicatorsReport(MonthYearMixin, CustomProjectReport, CaseListRepor
 
         domain = config["domain"]
         location_id = config["location_id"]
-        user_ids = get_CCT_user_ids(domain)
-        sql_data = ProjectIndicatorsCaseSqlData(domain=domain, datespan=config["datespan"], user_ids=user_ids).data
-        locations = get_location_hierarchy_by_id(location_id, domain)
+        sql_data = ProjectIndicatorsCaseSqlData(domain=domain, datespan=config["datespan"]).data
+        locations = get_location_hierarchy_by_id(location_id, domain, CCT_only=True)
         row_data = ProjectIndicatorsReport.get_initial_row_data()
 
         for key in sql_data:
@@ -48,7 +48,7 @@ class ProjectIndicatorsReport(MonthYearMixin, CustomProjectReport, CaseListRepor
                 if row_key == "women_delivering_within_6_weeks_attending_pnc_total" and value > 1:
                     value = 1
                 row_data.get(row_key, {})["value"] += value
-        return row_data
+        return sorted([(key, row_data[key]) for key in row_data], key=lambda t: t[1].get("s/n"))
 
     @classmethod
     def get_initial_row_data(cls):
@@ -90,11 +90,11 @@ class ProjectIndicatorsReport(MonthYearMixin, CustomProjectReport, CaseListRepor
             "domain": str(self.domain)
         })
 
-        for key in row_data:
+        for row in row_data:
             yield [
-                self.table_cell(row_data.get(key).get("s/n", "")),
-                self.table_cell(row_data.get(key).get("label", "")),
-                self.table_cell(row_data.get(key).get("value", 0))
+                self.table_cell(row[1].get("s/n", "")),
+                self.table_cell(row[1].get("label", "")),
+                self.table_cell(row[1].get("value", 0))
             ]
 
     @property

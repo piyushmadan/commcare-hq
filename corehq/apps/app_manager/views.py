@@ -24,6 +24,8 @@ from corehq.apps.app_manager.exceptions import (
 from corehq.apps.app_manager.forms import CopyApplicationForm
 from corehq.apps.app_manager import id_strings
 from corehq.apps.app_manager.templatetags.xforms_extras import trans
+from corehq.apps.commtrack.models import Program
+from corehq.apps.hqwebapp.utils import get_bulk_upload_form
 from corehq.apps.reports.formdetails.readable import (
     FormQuestionResponse,
     questions_in_hierarchy,
@@ -34,7 +36,7 @@ from couchdbkit.exceptions import ResourceConflict
 from django.http import HttpResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden
 from unidecode import unidecode
 from django.http import HttpResponseRedirect
-from django.core.urlresolvers import reverse, RegexURLResolver
+from django.core.urlresolvers import reverse, RegexURLResolver, Resolver404
 from django.shortcuts import render
 from corehq.apps.translations.models import Translation
 from dimagi.utils.django.cached_object import CachedObject
@@ -337,10 +339,10 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
     try:
         xform = form.wrapped_xform()
     except XFormError as e:
-        form_errors.append("Error in form: %s" % e)
+        form_errors.append(u"Error in form: %s" % e)
     except Exception as e:
         logging.exception(e)
-        form_errors.append("Unexpected error in form: %s" % e)
+        form_errors.append(u"Unexpected error in form: %s" % e)
 
     if xform and xform.exists():
         if xform.already_has_meta():
@@ -353,22 +355,22 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
             form.validate_form()
             xform_questions = xform.get_questions(langs, include_triggers=True)
         except etree.XMLSyntaxError as e:
-            form_errors.append("Syntax Error: %s" % e)
+            form_errors.append(u"Syntax Error: %s" % e)
         except AppEditingError as e:
-            form_errors.append("Error in application: %s" % e)
+            form_errors.append(u"Error in application: %s" % e)
         except XFormValidationError:
             xform_validation_errored = True
             # showing these messages is handled by validate_form_for_build ajax
             pass
         except XFormError as e:
-            form_errors.append("Error in form: %s" % e)
+            form_errors.append(u"Error in form: %s" % e)
         # any other kind of error should fail hard,
         # but for now there are too many for that to be practical
         except Exception as e:
             if settings.DEBUG:
                 raise
             notify_exception(request, 'Unexpected Build Error')
-            form_errors.append("Unexpected System Error: %s" % e)
+            form_errors.append(u"Unexpected System Error: %s" % e)
 
         try:
             form_action_errors = form.validate_for_build()
@@ -377,32 +379,29 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
                 if settings.DEBUG and False:
                     xform.validate()
         except CaseError as e:
-            messages.error(request, "Error in Case Management: %s" % e)
+            messages.error(request, u"Error in Case Management: %s" % e)
         except XFormValidationError as e:
-            messages.error(request, "%s" % e)
+            messages.error(request, unicode(e))
         except Exception as e:
             if settings.DEBUG:
                 raise
-            logging.exception(e)
-            messages.error(request, "Unexpected Error: %s" % e)
+            logging.exception(unicode(e))
+            messages.error(request, u"Unexpected Error: %s" % e)
 
     try:
         languages = xform.get_languages()
     except Exception:
         languages = []
 
-    for i, err in enumerate(form_errors):
-        if not isinstance(err, basestring):
-            messages.error(request, err[0], **err[1])
-            form_errors[i] = err[0]
-        else:
-            messages.error(request, err)
+    for err in form_errors:
+        messages.error(request, err)
 
     module_case_types = []
+    app = form.get_app()
     if is_user_registration:
         module_case_types = None
     else:
-        for module in form.get_app().get_modules():
+        for module in app.get_modules():
             for case_type in module.get_case_types():
                 module_case_types.append({
                     'id': module.unique_id,
@@ -413,7 +412,7 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
 
     if not form.unique_id:
         form.get_unique_id()
-        form.get_app().save()
+        app.save()
 
     context = {
         'nav_form': form if not is_user_registration else '',
@@ -434,8 +433,17 @@ def get_form_view_context_and_template(request, form, langs, is_user_registratio
         })
         return "app_manager/form_view_careplan.html", context
     elif isinstance(form, AdvancedForm):
+        def commtrack_programs():
+            if app.commtrack_enabled:
+                programs = Program.by_domain(app.domain)
+                return [{'value': program.get_id, 'label': program.name} for program in programs]
+            else:
+                return []
+
+        all_programs = [{'value': '', 'label': _('All Programs')}]
         context.update({
             'show_custom_ref': toggles.APP_BUILDER_CUSTOM_PARENT_REF.enabled(request.user.username),
+            'commtrack_programs': all_programs + commtrack_programs(),
         })
         return "app_manager/form_view_advanced.html", context
     else:
@@ -500,6 +508,20 @@ def get_app_view_context(request, app):
         context.update({
             'multimedia': multimedia,
         })
+
+    context.update({
+        'bulk_upload': {
+            'action': reverse('upload_translations',
+                              args=(app.domain, app.get_id)),
+            'download_url': reverse('download_translations',
+                                    args=(app.domain, app.get_id)),
+            'adjective': _(u"U\u200BI translation"),
+            'plural_noun': _(u"U\u200BI translations"),
+        },
+    })
+    context.update({
+        'bulk_upload_form': get_bulk_upload_form(context),
+    })
     return context
 
 
@@ -746,12 +768,18 @@ def view_generic(req, domain, app_id=None, module_id=None, form_id=None, is_user
                 form = app.get_user_registration()
 
         if module_id:
-            module = app.get_module(module_id)
+            try:
+                module = app.get_module(module_id)
+            except ModuleNotFoundException:
+                raise Http404()
             if not module.unique_id:
                 module.get_or_create_unique_id()
                 app.save()
         if form_id:
-            form = module.get_form(form_id)
+            try:
+                form = module.get_form(form_id)
+            except IndexError:
+                raise Http404()
     except ModuleNotFoundException:
         return bail(req, domain, app_id)
 
@@ -795,7 +823,13 @@ def view_generic(req, domain, app_id=None, module_id=None, form_id=None, is_user
         context.update(form_context)
     elif module:
         template, module_context = get_module_view_context_and_template(app, module)
-        module_context["enable_calc_xpaths"] = feature_previews.CALC_XPATHS.enabled(getattr(req, 'domain', None))
+        module_context["enable_calc_xpaths"] = (
+            feature_previews.CALC_XPATHS.enabled(getattr(req, 'domain', None))
+        )
+        module_context["enable_enum_image"] = (
+            req.couch_user.is_previewer or
+            feature_previews.ENUM_IMAGE.enabled(getattr(req, 'domain', None))
+        )
         context.update(module_context)
     else:
         template = "app_manager/app_view.html"
@@ -864,7 +898,7 @@ def form_designer(req, domain, app_id, module_id=None, form_id=None,
     else:
         try:
             module = app.get_module(module_id)
-        except IndexError:
+        except ModuleNotFoundException:
             return bail(req, domain, app_id, not_found="module")
         try:
             form = module.get_form(form_id)
@@ -1523,6 +1557,27 @@ def edit_commcare_profile(request, domain, app_id):
     return json_response(response_json)
 
 
+def validate_langs(request, existing_langs, validate_build=True):
+    o = json.loads(request.raw_post_data)
+    langs = o['langs']
+    rename = o['rename']
+    build = o['build']
+
+    assert set(rename.keys()).issubset(existing_langs)
+    assert set(rename.values()).issubset(langs)
+    # assert that there are no repeats in the values of rename
+    assert len(set(rename.values())) == len(rename.values())
+    # assert that no lang is renamed to an already existing lang
+    for old, new in rename.items():
+        if old != new:
+            assert(new not in existing_langs)
+    # assert that the build langs are in the correct order
+    if validate_build:
+        assert sorted(build, key=lambda lang: langs.index(lang)) == build
+
+    return (langs, rename, build)
+
+
 @no_conflict_require_POST
 @require_can_edit_apps
 def edit_app_langs(request, domain, app_id):
@@ -1538,23 +1593,9 @@ def edit_app_langs(request, domain, app_id):
         build: ["es", "hin"]
     }
     """
-    o = json.loads(request.raw_post_data)
     app = get_app(domain, app_id)
-    langs = o['langs']
-    rename = o['rename']
-    build = o['build']
-
     try:
-        assert set(rename.keys()).issubset(app.langs)
-        assert set(rename.values()).issubset(langs)
-        # assert that there are no repeats in the values of rename
-        assert len(set(rename.values())) == len(rename.values())
-        # assert that no lang is renamed to an already existing lang
-        for old, new in rename.items():
-            if old != new:
-                assert(new not in app.langs)
-        # assert that the build langs are in the correct order
-        assert sorted(build, key=lambda lang: langs.index(lang)) == build
+        langs, rename, build = validate_langs(request, app.langs)
     except AssertionError:
         return HttpResponse(status=400)
 
@@ -1595,9 +1636,9 @@ def get_app_translations(request, domain):
     key = params.get('key', None)
     one = params.get('one', False)
     translations = Translation.get_translations(lang, key, one)
-
-    translations = {k: v for k, v in translations.items()
-                    if not id_strings.is_custom_app_string(k)}
+    if isinstance(translations, dict):
+        translations = {k: v for k, v in translations.items()
+                        if not id_strings.is_custom_app_string(k)}
     return json_response(translations)
 
 
@@ -1930,6 +1971,10 @@ def download_file(req, domain, app_id, path):
     else:
         full_path = 'files/%s' % path
 
+    def resolve_path(path):
+        return RegexURLResolver(
+            r'^', 'corehq.apps.app_manager.download_urls').resolve(path)
+
     try:
         assert req.app.copy_of
         obj = CachedObject('{id}::{path}'.format(
@@ -1960,10 +2005,28 @@ def download_file(req, domain, app_id, path):
                 req.app.save()
                 return download_file(req, domain, app_id, path)
             else:
-                notify_exception(req, 'Build resource not found')
+                try:
+                    resolve_path(path)
+                except Resolver404:
+                    # ok this was just a url that doesn't exist
+                    logging.error(
+                        'Unknown build resource %s not found' % path)
+                    pass
+                else:
+                    # this resource should exist but doesn't
+                    logging.error(
+                        'Expected build resource %s not found' % path)
+                    req.app.build_broken = True
+                    req.app.build_broken_reason = 'incomplete-build'
+                    req.app.save()
                 raise Http404()
-        callback, callback_args, callback_kwargs = RegexURLResolver(r'^', 'corehq.apps.app_manager.download_urls').resolve(path)
+        try:
+            callback, callback_args, callback_kwargs = resolve_path(path)
+        except Resolver404:
+            raise Http404()
+
         return callback(req, domain, app_id, *callback_args, **callback_kwargs)
+
 
 @safe_download
 def download_profile(req, domain, app_id):
@@ -2327,9 +2390,10 @@ def download_translations(request, domain, app_id):
     export_raw(headers, data, temp)
     return export_response(temp, Format.XLS_2007, "translations")
 
+
 @no_conflict_require_POST
 @require_can_edit_apps
-@get_file("file")
+@get_file("bulk_upload_file")
 def upload_translations(request, domain, app_id):
     success = False
     try:
@@ -2338,14 +2402,26 @@ def upload_translations(request, domain, app_id):
 
         app = get_app(domain, app_id)
         trans_dict = defaultdict(dict)
+        error_properties = []
         for row in translations:
             for lang in app.langs:
                 if row.get(lang):
+                    all_parameters = re.findall("\$.*?}", row[lang])
+                    for param in all_parameters:
+                        if not re.match("\$\{[0-9]+}", param):
+                            error_properties.append(row["property"] + ' - ' + row[lang])
                     trans_dict[lang].update({row["property"]: row[lang]})
 
-        app.translations = dict(trans_dict)
-        app.save()
-        success = True
+        if error_properties:
+            message = _("We found problem with following translations:")
+            message += "<br>"
+            for prop in error_properties:
+                message += "<li>%s</li>" % prop
+            messages.error(request, message, extra_tags='html')
+        else:
+            app.translations = dict(trans_dict)
+            app.save()
+            success = True
     except Exception:
         notify_exception(request, 'Bulk Upload Translations Error')
         messages.error(request, _("Something went wrong! Update failed. We're looking into it"))
